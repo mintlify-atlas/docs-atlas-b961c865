@@ -1,0 +1,92 @@
+{
+  "projectType": "api-service",
+  "projectName": "MoviePlay API",
+  "projectDescription": "REST API for managing movie catalogs with AI-powered recommendations built with Spring Boot",
+  "theme": "aspen",
+  "primaryColor": "#E50914",
+  "lightColor": "#F40612",
+  "darkColor": "#B20710",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "API Guide",
+            "pages": [
+              "api-guide/authentication",
+              "api-guide/error-handling",
+              "api-guide/pagination"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/database-setup",
+              "deployment/environment-config"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/ai-integration",
+              "advanced/mapstruct-mapping",
+              "advanced/validation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/overview",
+              "api-reference/movies/get-all-movies",
+              "api-reference/movies/get-movie-by-id",
+              "api-reference/movies/create-movie",
+              "api-reference/movies/update-movie",
+              "api-reference/movies/delete-movie",
+              "api-reference/ai/suggest-movies"
+            ]
+          },
+          {
+            "group": "Data Models",
+            "pages": [
+              "api-reference/models/movie",
+              "api-reference/models/genre"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Complete CRUD operations for movie management",
+    "AI-powered movie recommendations using LangChain4j",
+    "Clean architecture with layered design pattern",
+    "OpenAPI/Swagger documentation",
+    "PostgreSQL persistence with Spring Data JPA",
+    "MapStruct entity-to-DTO mapping",
+    "Bean validation for data integrity",
+    "Docker containerization support"
+  ],
+  "publicApiSurface": [
+    "GET /movies/all - Get all movies",
+    "GET /movies/{id} - Get movie by ID",
+    "POST /movies/save - Create new movie",
+    "PUT /movies/{id} - Update existing movie",
+    "DELETE /movies/delete/{id} - Delete movie",
+    "POST /movies/suggest - Get AI movie suggestions"
+  ]
+}
