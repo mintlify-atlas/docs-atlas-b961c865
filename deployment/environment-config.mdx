@@ -1,0 +1,388 @@
+---
+title: Environment Configuration
+description: Configure Spring profiles and application properties for MoviePlay API
+---
+
+## Overview
+
+MoviePlay API uses Spring Boot's profile-based configuration system to manage different environments. The application supports multiple profiles with specific settings for development and production.
+
+## Configuration Files
+
+The application uses three main configuration files:
+
+<CardGroup cols={3}>
+  <Card title="application.properties" icon="file">
+    Base configuration and defaults
+  </Card>
+  <Card title="application-dev.properties" icon="code">
+    Development environment settings
+  </Card>
+  <Card title="application-prod.properties" icon="server">
+    Production environment settings
+  </Card>
+</CardGroup>
+
+## Base Configuration
+
+The main `application.properties` file sets application-wide defaults:
+
+```properties application.properties
+spring.profiles.active=prod
+
+spring.application.name=MoviePlay
+server.servlet.context-path=/movie-play/api
+```
+
+<Warning>
+  **Important**: All API endpoints are served under the `/movie-play/api` context path.
+  
+  For example:
+  - Base URL: `http://localhost:8080/movie-play/api`
+  - Movies endpoint: `http://localhost:8080/movie-play/api/movies`
+</Warning>
+
+### Key Settings
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `spring.profiles.active` | `prod` | Default active profile |
+| `spring.application.name` | `MoviePlay` | Application name |
+| `server.servlet.context-path` | `/movie-play/api` | Base path for all endpoints |
+
+## Profile System
+
+### Available Profiles
+
+MoviePlay API supports two profiles:
+
+<Tabs>
+  <Tab title="Development (dev)">
+    **Purpose**: Local development and testing
+    
+    **Features**:
+    - Runs on port `8090`
+    - Connects to local PostgreSQL
+    - SQL query logging enabled
+    - Verbose debugging for AI features
+    - Safe credentials for local use
+    
+    **When to use**: During development, debugging, and local testing
+  </Tab>
+  
+  <Tab title="Production (prod)">
+    **Purpose**: Production deployment
+    
+    **Features**:
+    - Runs on port `8080`
+    - Connects to remote PostgreSQL
+    - Minimal logging for performance
+    - Production credentials
+    - Optimized for performance
+    
+    **When to use**: Production deployments, staging environments
+  </Tab>
+</Tabs>
+
+### Activating Profiles
+
+There are multiple ways to activate a Spring profile:
+
+<CodeGroup>
+```bash Environment Variable
+export SPRING_PROFILES_ACTIVE=dev
+java -jar movie_play.jar
+```
+
+```bash JVM Argument
+java -Dspring.profiles.active=dev -jar movie_play.jar
+```
+
+```bash Docker Run
+docker run -e SPRING_PROFILES_ACTIVE=dev -p 8090:8090 movieplay-api
+```
+
+```properties application.properties
+spring.profiles.active=dev
+```
+</CodeGroup>
+
+<Note>
+  The precedence order (highest to lowest):
+  1. Command-line arguments (`-Dspring.profiles.active=dev`)
+  2. Environment variables (`SPRING_PROFILES_ACTIVE=dev`)
+  3. `application.properties` file
+</Note>
+
+## Development Profile (dev)
+
+### Complete Configuration
+
+```properties application-dev.properties
+server.port=8090
+
+# Spring Data JPA
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.datasource.url=jdbc:postgresql://localhost:5432/movie_play_db
+spring.datasource.username=psantana
+spring.datasource.password=password
+
+# Hibernate Settings
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.sql.init.mode=always
+
+# LangChain4j AI Integration
+langchain4j.open-ai.chat-model.api-key=demo
+langchain4j.open-ai.chat-model.model-name=gpt-4o-mini
+langchain4j.open-ai.chat-model.log-requests=true
+langchain4j.open-ai.chat-model.log-responses=true
+
+# Debug Logging
+logging.level.dev.langchain4j=DEBUG
+logging.level.dev.ai4j.openai4j=DEBUG
+```
+
+### Key Development Features
+
+<AccordionGroup>
+  <Accordion title="Database Configuration">
+    - **Port**: 8090 (avoids conflicts with other apps)
+    - **Database**: Local PostgreSQL on `localhost:5432`
+    - **Credentials**: `psantana / password`
+    - **Driver**: Explicit PostgreSQL driver configuration
+  </Accordion>
+  
+  <Accordion title="SQL Logging">
+    ```properties
+    spring.jpa.show-sql=true
+    spring.jpa.properties.hibernate.format_sql=true
+    ```
+    
+    Outputs formatted SQL queries to console:
+    ```sql
+    Hibernate: 
+        select
+            movie0_.id as id1_0_,
+            movie0_.title as title2_0_,
+            movie0_.description as descript3_0_ 
+        from
+            movies movie0_
+    ```
+  </Accordion>
+  
+  <Accordion title="AI Debug Logging">
+    ```properties
+    langchain4j.open-ai.chat-model.log-requests=true
+    langchain4j.open-ai.chat-model.log-responses=true
+    logging.level.dev.langchain4j=DEBUG
+    logging.level.dev.ai4j.openai4j=DEBUG
+    ```
+    
+    Enables verbose logging for AI chat features, showing request/response payloads.
+  </Accordion>
+</AccordionGroup>
+
+## Production Profile (prod)
+
+### Complete Configuration
+
+```properties application-prod.properties
+server.port=8080
+
+# Database Configuration
+spring.datasource.url=jdbc:postgresql://dpg-d6epc25m5p6s73a05am0-a:5432/movie_play_db_zrkd
+spring.datasource.username=piero
+spring.datasource.password=vc9UcGQK4WFkgrTkW4RRzXtOeYCKP8xb
+
+# Hibernate Settings
+spring.jpa.hibernate.ddl-auto=update
+spring.sql.init.mode=always
+
+# LangChain4j AI Integration
+langchain4j.open-ai.chat-model.api-key=demo
+langchain4j.open-ai.chat-model.model-name=gpt-4o-mini
+```
+
+### Production Differences
+
+<CardGroup cols={2}>
+  <Card title="Standard Port" icon="network-wired">
+    Uses port `8080` (standard HTTP alternate)
+  </Card>
+  <Card title="Remote Database" icon="database">
+    Connects to hosted PostgreSQL instance
+  </Card>
+  <Card title="No SQL Logging" icon="eye-slash">
+    Disabled for better performance
+  </Card>
+  <Card title="No Debug Logs" icon="bug-slash">
+    Minimal logging to reduce overhead
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Security Notice**: The production configuration contains real credentials. In a real-world deployment:
+  - Use environment variables for sensitive data
+  - Never commit credentials to version control
+  - Use secrets management (AWS Secrets Manager, HashiCorp Vault, etc.)
+</Warning>
+
+## Environment Variables
+
+Override configuration using environment variables:
+
+### Database Configuration
+
+```bash
+# Database URL
+export SPRING_DATASOURCE_URL=jdbc:postgresql://your-host:5432/your-db
+
+# Database Credentials
+export SPRING_DATASOURCE_USERNAME=your-username
+export SPRING_DATASOURCE_PASSWORD=your-password
+```
+
+### AI Configuration
+
+```bash
+# OpenAI API Key
+export LANGCHAIN4J_OPEN_AI_CHAT_MODEL_API_KEY=sk-your-actual-key
+
+# Model Selection
+export LANGCHAIN4J_OPEN_AI_CHAT_MODEL_MODEL_NAME=gpt-4o-mini
+```
+
+### Server Configuration
+
+```bash
+# Server Port
+export SERVER_PORT=8080
+
+# Context Path
+export SERVER_SERVLET_CONTEXT_PATH=/movie-play/api
+
+# Active Profile
+export SPRING_PROFILES_ACTIVE=prod
+```
+
+<Note>
+  Spring Boot automatically converts environment variables to property format:
+  - Uppercase with underscores (`SPRING_DATASOURCE_URL`)
+  - Converts to lowercase with dots (`spring.datasource.url`)
+</Note>
+
+## AI Integration (LangChain4j)
+
+Both profiles configure LangChain4j for AI-powered features:
+
+```properties
+langchain4j.open-ai.chat-model.api-key=demo
+langchain4j.open-ai.chat-model.model-name=gpt-4o-mini
+```
+
+<Warning>
+  The `api-key=demo` is a placeholder. For production use:
+  
+  ```bash
+  export LANGCHAIN4J_OPEN_AI_CHAT_MODEL_API_KEY=sk-your-real-key
+  ```
+  
+  Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+</Warning>
+
+### Supported Models
+
+- `gpt-4o-mini` - Fast and cost-effective (current default)
+- `gpt-4o` - More capable, higher cost
+- `gpt-4-turbo` - Previous generation
+- `gpt-3.5-turbo` - Fastest, most economical
+
+## Configuration Best Practices
+
+<Steps>
+  <Step title="Use Environment Variables for Secrets">
+    Never hardcode sensitive data. Use environment variables:
+    
+    ```bash
+    export SPRING_DATASOURCE_PASSWORD=your-secure-password
+    export LANGCHAIN4J_OPEN_AI_CHAT_MODEL_API_KEY=your-api-key
+    ```
+  </Step>
+  
+  <Step title="Profile-Specific Settings">
+    Keep environment-specific settings in separate files:
+    - `application-dev.properties` for development
+    - `application-prod.properties` for production
+    - `application-test.properties` for testing (if needed)
+  </Step>
+  
+  <Step title="Externalized Configuration">
+    For containerized deployments, mount configuration:
+    
+    ```bash
+    docker run -v /path/to/config:/config \
+      -e SPRING_CONFIG_LOCATION=/config/application.properties \
+      movieplay-api
+    ```
+  </Step>
+  
+  <Step title="Use Spring Cloud Config (Optional)">
+    For microservices, consider centralized configuration with Spring Cloud Config Server.
+  </Step>
+</Steps>
+
+## Verifying Configuration
+
+Check which profile and configuration is active:
+
+<CodeGroup>
+```bash Check Active Profile
+curl http://localhost:8080/movie-play/api/actuator/env | jq '.activeProfiles'
+```
+
+```bash View All Properties
+curl http://localhost:8080/movie-play/api/actuator/configprops
+```
+
+```bash Application Logs
+# Look for startup log line:
+The following profiles are active: prod
+```
+</CodeGroup>
+
+<Note>
+  Spring Boot Actuator endpoints must be enabled in configuration:
+  
+  ```properties
+  management.endpoints.web.exposure.include=env,configprops,health,info
+  ```
+</Note>
+
+## Quick Reference
+
+### Port Mapping
+
+| Profile | Port | URL |
+|---------|------|-----|
+| dev | 8090 | `http://localhost:8090/movie-play/api` |
+| prod | 8080 | `http://localhost:8080/movie-play/api` |
+
+### Database Connections
+
+| Profile | Host | Database | User |
+|---------|------|----------|------|
+| dev | localhost | movie_play_db | psantana |
+| prod | dpg-d6epc25m5p6s73a05am0-a | movie_play_db_zrkd | piero |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Setup" icon="docker" href="/deployment/docker">
+    Deploy with Docker and Docker Compose
+  </Card>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Configure PostgreSQL database
+  </Card>
+</CardGroup>

@@ -1,0 +1,58 @@
+---
+title: 'AI Movie Suggestions'
+api: 'POST /movies/suggest'
+description: 'Get personalized movie recommendations using AI'
+---
+
+## Endpoint
+
+```
+POST /movie-play/api/movies/suggest
+```
+
+## Description
+
+Generates personalized movie recommendations based on user preferences using AI-powered suggestion engine. Provide your preferences in natural language and receive tailored movie suggestions.
+
+## Request Body
+
+<ParamField body="userPreferences" type="string" required>
+  Natural language description of user's movie preferences
+  
+  Describe what kind of movies you enjoy, preferred genres, themes, moods, or specific characteristics you're looking for.
+  
+  Example: `"I love sci-fi movies with time travel themes and mind-bending plots"`
+</ParamField>
+
+## Response
+
+<ResponseField name="suggestions" type="string">
+  AI-generated movie suggestions as a text response based on the provided user preferences
+</ResponseField>
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200  | Success - AI suggestions generated successfully |
+| 400  | Bad Request - Invalid request body |
+
+## Example Request
+
+```bash cURL
+curl -X POST https://movieplay-424k.onrender.com/movie-play/api/movies/suggest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userPreferences": "I love sci-fi movies with time travel themes and mind-bending plots"
+  }'
+```
+
+## Example Response
+
+```json 200 OK
+"Based on your preferences for sci-fi movies with time travel and mind-bending plots, here are some recommendations:\n\n1. Inception (2010) - A masterpiece of layered reality and dream manipulation\n2. Interstellar (2014) - Epic space exploration with time dilation themes\n3. Primer (2004) - Complex, low-budget time travel thriller\n4. Predestination (2014) - Intricate time travel paradox story\n5. Tenet (2020) - Action-packed with time inversion mechanics"
+```
+
+<Info>
+  The AI suggestions are generated in real-time and may vary based on the specificity and detail of your preferences. For best results, provide clear and detailed descriptions of what you're looking for.
+</Info>

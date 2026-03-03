@@ -1,80 +1,265 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get MoviePlay API running locally in minutes
 ---
 
-## Get started in three steps
+## Get up and running
 
-Get your documentation site running locally and make your first customization.
+This guide will help you run the MoviePlay API on your local machine and make your first API calls.
 
-### Step 1: Set up your local environment
+<Note>
+  **Prerequisites:** Java 21, Docker (optional), and a terminal/command prompt
+</Note>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+## Run with Docker Compose (recommended)
+
+The fastest way to get started is using Docker Compose, which sets up both the API and PostgreSQL database:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/your-repo/movieplay.git
+    cd movieplay
+    ```
+  </Step>
+
+  <Step title="Start the services">
+    ```bash
+    docker-compose up -d
+    ```
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    This starts PostgreSQL on port 5432 with the following configuration:
+    - Database: `movie_play_db`
+    - Username: `psantana`
+    - Password: `password`
+  </Step>
+
+  <Step title="Build and run the application">
+    ```bash
+    ./gradlew bootRun
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    The API will start on `http://localhost:8080/movie-play/api`
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Verify it's running">
+    Open your browser and navigate to the Swagger UI:
+    ```
+    http://localhost:8080/movie-play/api/swagger-ui/index.html
+    ```
+  </Step>
+</Steps>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+## Run with local PostgreSQL
+
+If you prefer to use an existing PostgreSQL installation:
+
+<Steps>
+  <Step title="Create the database">
+    ```sql
+    CREATE DATABASE movie_play_db;
+    CREATE USER psantana WITH PASSWORD 'password';
+    GRANT ALL PRIVILEGES ON DATABASE movie_play_db TO psantana;
+    ```
+  </Step>
+
+  <Step title="Configure the application">
+    The default configuration in `src/main/resources/application-dev.properties` should work with the above setup.
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    If you need different credentials, update the properties:
+    ```properties
+    spring.datasource.url=jdbc:postgresql://localhost:5432/movie_play_db
+    spring.datasource.username=your_username
+    spring.datasource.password=your_password
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Build the application">
+    ```bash
+    ./gradlew build
+    ```
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Run the application">
+    ```bash
+    java -jar build/libs/movieplay-1.0.0.jar
+    ```
+  </Step>
+</Steps>
 
-### Step 3: Go live
+## Run with Docker
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+You can also build and run the entire application as a Docker container:
+
+<Steps>
+  <Step title="Build the Docker image">
+    ```bash
+    docker build -t movieplay .
+    ```
+    
+    The Dockerfile uses a multi-stage build:
+    - Stage 1: Compiles the application with Gradle 9.3.0 and JDK 21
+    - Stage 2: Creates a minimal runtime image with just the JAR file
+  </Step>
+
+  <Step title="Run the container">
+    ```bash
+    docker run -p 8080:8080 \
+      -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/movie_play_db \
+      -e SPRING_DATASOURCE_USERNAME=psantana \
+      -e SPRING_DATASOURCE_PASSWORD=password \
+      movieplay
+    ```
+    
+    <Note>
+      Use `host.docker.internal` to connect to PostgreSQL running on your host machine
+    </Note>
+  </Step>
+</Steps>
+
+## Make your first API call
+
+Once the API is running, let's create and retrieve a movie:
+
+<Steps>
+  <Step title="Create a movie">
+    ```bash
+    curl -X POST http://localhost:8080/movie-play/api/movies/save \
+      -H "Content-Type: application/json" \
+      -d '{
+        "title": "The Matrix",
+        "duration": 136,
+        "genre": "SCI_FI",
+        "releaseDate": "1999-03-31",
+        "rating": 8.7,
+        "status": true
+      }'
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "title": "The Matrix",
+      "duration": 136,
+      "genre": "SCI_FI",
+      "releaseDate": "1999-03-31",
+      "rating": 8.7,
+      "status": true
+    }
+    ```
+  </Step>
+
+  <Step title="Get all movies">
+    ```bash
+    curl http://localhost:8080/movie-play/api/movies/all
+    ```
+    
+    **Response:**
+    ```json
+    [
+      {
+        "title": "The Matrix",
+        "duration": 136,
+        "genre": "SCI_FI",
+        "releaseDate": "1999-03-31",
+        "rating": 8.7,
+        "status": true
+      }
+    ]
+    ```
+  </Step>
+
+  <Step title="Get AI recommendations">
+    ```bash
+    curl -X POST http://localhost:8080/movie-play/api/movies/suggest \
+      -H "Content-Type: application/json" \
+      -d '{
+        "userPreferences": "I love sci-fi movies with mind-bending plots"
+      }'
+    ```
+    
+    <Warning>
+      AI recommendations require an OpenAI API key configured in your environment
+    </Warning>
+  </Step>
+</Steps>
+
+## Explore the API
+
+Now that you have the API running, explore all available endpoints:
+
+<CardGroup cols={2}>
+  <Card title="Local Swagger UI" icon="browser" href="http://localhost:8080/movie-play/api/swagger-ui/index.html">
+    Interactive API documentation for your local instance
+  </Card>
+  <Card title="Live API" icon="cloud" href="https://movieplay-424k.onrender.com/movie-play/api/swagger-ui/index.html">
+    Try the production API without any setup
+  </Card>
+</CardGroup>
+
+## Available endpoints
+
+Here are the main endpoints you can use:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/movies/all` | Get all movies in the catalog |
+| `GET` | `/movies/{id}` | Get a specific movie by ID |
+| `POST` | `/movies/save` | Create a new movie |
+| `PUT` | `/movies/{id}` | Update an existing movie |
+| `DELETE` | `/movies/delete/{id}` | Delete a movie |
+| `POST` | `/movies/suggest` | Get AI-powered movie recommendations |
+
+## Available genres
+
+When creating or updating movies, use one of these genre values:
+
+- `ACTION`
+- `COMEDY`
+- `DRAMA`
+- `ANIMATED`
+- `HORROR`
+- `SCI_FI`
+
+<Note>
+  Genre values are case-sensitive and must match exactly as shown above.
+</Note>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Learn how the API is structured and how data flows through the layers
+  </Card>
+  <Card title="API reference" icon="code" href="https://movieplay-424k.onrender.com/movie-play/api/swagger-ui/index.html">
+    Explore detailed documentation for every endpoint
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Database connection failed">
+    Make sure PostgreSQL is running and accessible:
+    ```bash
+    docker ps  # Check if postgres container is running
+    psql -h localhost -U psantana -d movie_play_db  # Test connection
+    ```
+  </Accordion>
+
+  <Accordion title="Port 8080 already in use">
+    Either stop the other application using port 8080, or change the port in `application.properties`:
+    ```properties
+    server.port=8081
+    ```
+  </Accordion>
+
+  <Accordion title="Gradle build fails">
+    Make sure you're using Java 21:
+    ```bash
+    java -version  # Should show version 21
+    ```
+    
+    If you have multiple Java versions, set `JAVA_HOME` to Java 21.
+  </Accordion>
+</AccordionGroup>

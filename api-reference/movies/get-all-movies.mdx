@@ -1,0 +1,89 @@
+---
+title: 'Get All Movies'
+api: 'GET /movies/all'
+description: 'Retrieve a list of all movies in the database'
+---
+
+## Endpoint
+
+```
+GET /movie-play/api/movies/all
+```
+
+## Description
+
+Returns a list of all movies stored in the MoviePlay database. If no movies are found, returns an empty array with a 204 No Content status.
+
+## Response
+
+<ResponseField name="movies" type="array">
+  Array of movie objects
+  
+  <Expandable title="Movie Object">
+    <ResponseField name="title" type="string" required>
+      The title of the movie
+    </ResponseField>
+    
+    <ResponseField name="duration" type="integer" required>
+      Duration of the movie in minutes
+    </ResponseField>
+    
+    <ResponseField name="genre" type="string" required>
+      Genre of the movie. Possible values: `ACTION`, `COMEDY`, `DRAMA`, `ANIMATED`, `HORROR`, `SCI_FI`
+    </ResponseField>
+    
+    <ResponseField name="releaseDate" type="string" required>
+      Release date in ISO 8601 format (YYYY-MM-DD)
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number" required>
+      Movie rating (0.0 to 5.0)
+    </ResponseField>
+    
+    <ResponseField name="status" type="boolean" required>
+      Availability status of the movie
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200  | Success - Returns list of movies |
+| 204  | No Content - No movies found in database |
+
+## Example Request
+
+```bash cURL
+curl -X GET https://movieplay-424k.onrender.com/movie-play/api/movies/all
+```
+
+## Example Response
+
+<CodeGroup>
+```json 200 OK
+[
+  {
+    "title": "The Matrix",
+    "duration": 136,
+    "genre": "SCI_FI",
+    "releaseDate": "1999-03-31",
+    "rating": 4.5,
+    "status": true
+  },
+  {
+    "title": "Inception",
+    "duration": 148,
+    "genre": "ACTION",
+    "releaseDate": "2010-07-16",
+    "rating": 4.8,
+    "status": true
+  }
+]
+```
+
+```json 204 No Content
+[]
+```
+</CodeGroup>

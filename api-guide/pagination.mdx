@@ -1,0 +1,256 @@
+---
+title: 'Pagination'
+description: 'Learn about pagination in the MoviePlay API'
+---
+
+## Current Implementation
+
+<Warning>
+  The MoviePlay API currently does not implement pagination. All list endpoints return the complete dataset.
+</Warning>
+
+## Available Endpoints
+
+### Get All Movies
+
+The `/movies/all` endpoint returns all movies in the database without pagination:
+
+```java MovieController.java
+@GetMapping("/all")
+public ResponseEntity<List<MovieDto>> getMovies() {
+    if (this.movieService.getAll().isEmpty() || this.movieService.getAll() == null) {
+        return new ResponseEntity<>(new ArrayList<>(),HttpStatus.NO_CONTENT);
+    }
+    return ResponseEntity.ok(this.movieService.getAll());
+}
+```
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET http://localhost:8080/movie-play/api/movies/all
+```
+
+```json Response (200 OK)
+[
+  {
+    "title": "Inception",
+    "duration": 148,
+    "genre": "ACTION",
+    "releaseDate": "2010-07-16",
+    "rating": 4.8,
+    "status": true
+  },
+  {
+    "title": "The Matrix",
+    "duration": 136,
+    "genre": "SCI_FI",
+    "releaseDate": "1999-03-31",
+    "rating": 4.7,
+    "status": true
+  }
+  // ... all movies in database
+]
+```
+
+```json Response (204 No Content)
+// Empty array when no movies exist
+[]
+```
+
+</CodeGroup>
+
+### Response Behavior
+
+<Note>
+  When no movies exist in the database, the endpoint returns `204 No Content` with an empty array.
+</Note>
+
+## Repository Interface
+
+The `MovieRepository` interface currently supports only full list retrieval:
+
+```java MovieRepository.java
+public interface MovieRepository {
+    List<MovieDto> getAll();
+    Optional<MovieDto> getById(Long id);
+    MovieDto save(MovieDto movieDto);
+    Optional<MovieDto> update(Long id, UpdateMovieDto updateMovieDto);
+    boolean delete(Long id);
+}
+```
+
+## Performance Considerations
+
+<Warning>
+  Without pagination, retrieving all movies can cause performance issues as the database grows:
+  
+  - **Memory usage**: All records loaded into memory at once
+  - **Network bandwidth**: Large response payloads
+  - **Response time**: Slower queries and serialization
+  - **Client performance**: Rendering large lists in UI
+</Warning>
+
+### Current Limitations
+
+- No limit on number of results returned
+- No offset or cursor support
+- No ability to retrieve partial datasets
+- Potential for large memory consumption
+- Network timeouts with very large datasets
+
+## Recommended Implementation
+
+For future pagination support, consider implementing Spring Data's built-in pagination:
+
+### 1. Add Pageable Support
+
+Update the repository to use Spring Data pagination:
+
+```java Future Implementation Example
+public interface MovieRepository {
+    // Add paginated method
+    Page<MovieDto> getAll(Pageable pageable);
+    
+    // Keep existing methods
+    Optional<MovieDto> getById(Long id);
+    MovieDto save(MovieDto movieDto);
+    // ...
+}
+```
+
+### 2. Update Controller
+
+Add pagination parameters to the controller:
+
+```java Future Implementation Example
+@GetMapping("/all")
+public ResponseEntity<Page<MovieDto>> getMovies(
+    @RequestParam(defaultValue = "0") int page,
+    @RequestParam(defaultValue = "20") int size,
+    @RequestParam(defaultValue = "id") String sortBy,
+    @RequestParam(defaultValue = "ASC") String direction
+) {
+    Pageable pageable = PageRequest.of(page, size, 
+        Sort.by(Sort.Direction.fromString(direction), sortBy));
+    return ResponseEntity.ok(movieService.getAll(pageable));
+}
+```
+
+### 3. Expected Response Format
+
+With pagination, responses would include metadata:
+
+```json Future Paginated Response
+{
+  "content": [
+    {
+      "title": "Inception",
+      "duration": 148,
+      "genre": "ACTION",
+      "releaseDate": "2010-07-16",
+      "rating": 4.8,
+      "status": true
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 20,
+    "sort": {
+      "sorted": true,
+      "unsorted": false,
+      "empty": false
+    }
+  },
+  "totalPages": 5,
+  "totalElements": 100,
+  "last": false,
+  "first": true,
+  "size": 20,
+  "number": 0,
+  "numberOfElements": 20,
+  "empty": false
+}
+```
+
+### 4. Request Examples
+
+Once implemented, pagination would be used as follows:
+
+<CodeGroup>
+
+```bash First Page (Default)
+curl -X GET "http://localhost:8080/movie-play/api/movies/all?page=0&size=20"
+```
+
+```bash Custom Page Size
+curl -X GET "http://localhost:8080/movie-play/api/movies/all?page=2&size=10"
+```
+
+```bash With Sorting
+curl -X GET "http://localhost:8080/movie-play/api/movies/all?page=0&size=20&sortBy=rating&direction=DESC"
+```
+
+```javascript JavaScript
+const getMovies = async (page = 0, size = 20) => {
+  const response = await fetch(
+    `/movie-play/api/movies/all?page=${page}&size=${size}`
+  );
+  return await response.json();
+};
+```
+
+```python Python
+import requests
+
+def get_movies(page=0, size=20, sort_by='id', direction='ASC'):
+    params = {
+        'page': page,
+        'size': size,
+        'sortBy': sort_by,
+        'direction': direction
+    }
+    response = requests.get(
+        'http://localhost:8080/movie-play/api/movies/all',
+        params=params
+    )
+    return response.json()
+```
+
+</CodeGroup>
+
+## Alternative: Cursor-based Pagination
+
+For better performance with large datasets, consider cursor-based pagination:
+
+```java Alternative Approach
+@GetMapping("/all")
+public ResponseEntity<CursorPage<MovieDto>> getMovies(
+    @RequestParam(required = false) Long cursor,
+    @RequestParam(defaultValue = "20") int limit
+) {
+    // Implementation would fetch records after the cursor
+}
+```
+
+### Benefits of Cursor-based Pagination
+
+- More efficient for large datasets
+- Consistent results even when data changes
+- Better performance for real-time data
+- No "missing items" when items are added/removed
+
+## Next Steps
+
+To implement pagination:
+
+1. Update `MovieRepository` interface to extend `PagingAndSortingRepository`
+2. Modify `MovieEntityRepository` to support `Pageable` parameters
+3. Update `MovieController` to accept pagination parameters
+4. Update service layer to handle `Page<MovieDto>` return types
+5. Add pagination metadata to API responses
+6. Document the new pagination parameters in endpoint documentation
+
+<Note>
+  When implementing pagination, maintain backward compatibility by keeping the current `/movies/all` endpoint or providing a way to retrieve all results (e.g., `size=-1`).
+</Note>

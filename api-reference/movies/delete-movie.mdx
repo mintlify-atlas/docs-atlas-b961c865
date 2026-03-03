@@ -1,0 +1,58 @@
+---
+title: 'Delete Movie'
+api: 'DELETE /movies/delete/{id}'
+description: 'Remove a movie from the database'
+---
+
+## Endpoint
+
+```
+DELETE /movie-play/api/movies/delete/{id}
+```
+
+## Description
+
+Permanently deletes a movie from the MoviePlay database using its unique identifier.
+
+## Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the movie to delete
+  
+  Example: `9`
+</ParamField>
+
+## Response
+
+This endpoint does not return a response body. Success or failure is indicated by the HTTP status code.
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 204  | No Content - Movie successfully deleted |
+| 404  | Not Found - Movie with specified ID does not exist |
+
+## Example Request
+
+```bash cURL
+curl -X DELETE https://movieplay-424k.onrender.com/movie-play/api/movies/delete/9
+```
+
+## Example Response
+
+<CodeGroup>
+```text 204 No Content
+(No response body)
+```
+
+```json 404 Not Found
+{
+  "error": "Movie not found"
+}
+```
+</CodeGroup>
+
+<Warning>
+  This action is irreversible. Once a movie is deleted, it cannot be recovered from the database.
+</Warning>

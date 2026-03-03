@@ -1,0 +1,122 @@
+---
+title: 'Create Movie'
+api: 'POST /movies/save'
+description: 'Add a new movie to the database'
+---
+
+## Endpoint
+
+```
+POST /movie-play/api/movies/save
+```
+
+## Description
+
+Creates a new movie entry in the MoviePlay database with the provided information.
+
+## Request Body
+
+<ParamField body="title" type="string" required>
+  The title of the movie
+  
+  Example: `"Interstellar"`
+</ParamField>
+
+<ParamField body="duration" type="integer" required>
+  Duration of the movie in minutes
+  
+  Example: `169`
+</ParamField>
+
+<ParamField body="genre" type="string" required>
+  Genre of the movie
+  
+  Must be one of: `ACTION`, `COMEDY`, `DRAMA`, `ANIMATED`, `HORROR`, `SCI_FI`
+  
+  Example: `"SCI_FI"`
+</ParamField>
+
+<ParamField body="releaseDate" type="string" required>
+  Release date in ISO 8601 format (YYYY-MM-DD)
+  
+  Example: `"2014-11-07"`
+</ParamField>
+
+<ParamField body="rating" type="number" required>
+  Movie rating between 0.0 and 5.0
+  
+  Example: `4.7`
+</ParamField>
+
+<ParamField body="status" type="boolean" required>
+  Availability status of the movie
+  
+  Example: `true`
+</ParamField>
+
+## Response
+
+<ResponseField name="movie" type="object">
+  The created movie object with all provided fields
+  
+  <Expandable title="Movie Object">
+    <ResponseField name="title" type="string">
+      The title of the movie
+    </ResponseField>
+    
+    <ResponseField name="duration" type="integer">
+      Duration of the movie in minutes
+    </ResponseField>
+    
+    <ResponseField name="genre" type="string">
+      Genre of the movie
+    </ResponseField>
+    
+    <ResponseField name="releaseDate" type="string">
+      Release date in ISO 8601 format
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number">
+      Movie rating (0.0 to 5.0)
+    </ResponseField>
+    
+    <ResponseField name="status" type="boolean">
+      Availability status of the movie
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 201  | Created - Movie successfully added to database |
+| 400  | Bad Request - Invalid request body |
+
+## Example Request
+
+```bash cURL
+curl -X POST https://movieplay-424k.onrender.com/movie-play/api/movies/save \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Interstellar",
+    "duration": 169,
+    "genre": "SCI_FI",
+    "releaseDate": "2014-11-07",
+    "rating": 4.7,
+    "status": true
+  }'
+```
+
+## Example Response
+
+```json 201 Created
+{
+  "title": "Interstellar",
+  "duration": 169,
+  "genre": "SCI_FI",
+  "releaseDate": "2014-11-07",
+  "rating": 4.7,
+  "status": true
+}
+```

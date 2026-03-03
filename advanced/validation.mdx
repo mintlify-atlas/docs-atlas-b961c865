@@ -1,0 +1,365 @@
+---
+title: 'Bean Validation'
+description: 'Learn how MoviePlay validates API requests using Jakarta Bean Validation'
+---
+
+## Overview
+
+MoviePlay uses [Jakarta Bean Validation](https://beanvalidation.org/) (formerly JSR 380) to validate incoming API requests. This ensures data integrity before it reaches your business logic, providing clear error messages when validation fails.
+
+<Note>
+Bean Validation uses annotations to declare constraints on your model classes. Spring Boot automatically validates annotated parameters and returns structured error responses.
+</Note>
+
+## Validation on DTOs
+
+### UpdateMovieDto with Constraints
+
+The `UpdateMovieDto` demonstrates comprehensive validation:
+
+```java UpdateMovieDto.java
+package com.psantana.movieplay.domain.dto;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PastOrPresent;
+import java.time.LocalDate;
+
+public record UpdateMovieDto(
+        @NotBlank(message = "The title is required")
+        String title,
+        
+        @PastOrPresent(message = "The release date must be earlier than the current date")
+        LocalDate releaseDate,
+        
+        @Min(value = 0, message = "The rating cannot be less than 0")
+        @Max(value = 5, message = "The rating cannot be higher than 5")
+        Double rating
+) {
+}
+```
+
+### Common Validation Annotations
+
+<AccordionGroup>
+  <Accordion title="@NotBlank">
+    Validates that a string is not null and contains at least one non-whitespace character.
+    
+    **Use case**: Required text fields like titles, names, descriptions.
+    
+    ```java
+    @NotBlank(message = "The title is required")
+    String title;
+    ```
+  </Accordion>
+
+  <Accordion title="@PastOrPresent">
+    Validates that a date is in the past or present (not in the future).
+    
+    **Use case**: Release dates, birth dates, creation timestamps.
+    
+    ```java
+    @PastOrPresent(message = "The release date must be earlier than the current date")
+    LocalDate releaseDate;
+    ```
+  </Accordion>
+
+  <Accordion title="@Min and @Max">
+    Validates numeric values are within a specific range.
+    
+    **Use case**: Ratings, quantities, percentages.
+    
+    ```java
+    @Min(value = 0, message = "The rating cannot be less than 0")
+    @Max(value = 5, message = "The rating cannot be higher than 5")
+    Double rating;
+    ```
+  </Accordion>
+
+  <Accordion title="@NotNull">
+    Validates that a field is not null (but can be empty for strings).
+    
+    **Use case**: Required fields that can be empty but must be present.
+    
+    ```java
+    @NotNull(message = "Genre is required")
+    Genre genre;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Always provide custom error messages using the `message` attribute. Default messages are often too technical for API consumers.
+</Tip>
+
+## Validation in Controllers
+
+### Triggering Validation with @Valid
+
+The `@Valid` annotation triggers validation on controller parameters:
+
+```java MovieController.java
+@RestController
+@RequestMapping("/movies")
+public class MovieController {
+    
+    private final MovieService movieService;
+
+    public MovieController(MovieService movieService) {
+        this.movieService = movieService;
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MovieDto> updateMovie(
+            @RequestBody @Valid UpdateMovieDto updateMovieDto,  // @Valid triggers validation
+            @PathVariable Long id) {
+        return ResponseEntity.ok(movieService.update(id, updateMovieDto));
+    }
+}
+```
+
+<Warning>
+Without `@Valid`, Spring will not validate the request body even if the DTO has validation annotations. Always remember to add `@Valid` to controller parameters you want to validate.
+</Warning>
+
+## Validation Error Handling
+
+When validation fails, Spring throws a `MethodArgumentNotValidException`. MoviePlay handles this with a centralized exception handler:
+
+```java RestExceptionHandle.java
+package com.psantana.movieplay.web.exception;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.util.ArrayList;
+import java.util.List;
+
+@RestControllerAdvice
+public class RestExceptionHandle {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<List<ApiError>> handleException(MethodArgumentNotValidException ex) {
+        List<ApiError> errors = new ArrayList<>();
+        
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            errors.add(new ApiError(error.getField(), error.getDefaultMessage()));
+        });
+        
+        return ResponseEntity.badRequest().body(errors);
+    }
+}
+```
+
+### ApiError Structure
+
+```java ApiError.java
+public record ApiError(
+    String code,
+    String message
+) {
+}
+```
+
+## Validation Flow
+
+<Steps>
+  <Step title="Request arrives">
+    Client sends a PUT request to `/movies/1` with an invalid `UpdateMovieDto`.
+  </Step>
+  
+  <Step title="Spring validates">
+    Before the controller method executes, Spring validates the `@Valid` annotated parameter against the constraints.
+  </Step>
+  
+  <Step title="Validation fails">
+    If constraints are violated, Spring throws `MethodArgumentNotValidException` without executing the controller method.
+  </Step>
+  
+  <Step title="Exception handler intercepts">
+    `@RestControllerAdvice` catches the exception and extracts field errors.
+  </Step>
+  
+  <Step title="Structured response">
+    Returns a 400 Bad Request with a list of validation errors in JSON format.
+  </Step>
+</Steps>
+
+## Example Validation Scenarios
+
+### Invalid Request Example
+
+```json Request
+PUT /movies/1
+{
+  "title": "",
+  "releaseDate": "2027-12-31",
+  "rating": 6.5
+}
+```
+
+```json Response (400 Bad Request)
+[
+  {
+    "code": "title",
+    "message": "The title is required"
+  },
+  {
+    "code": "releaseDate",
+    "message": "The release date must be earlier than the current date"
+  },
+  {
+    "code": "rating",
+    "message": "The rating cannot be higher than 5"
+  }
+]
+```
+
+### Valid Request Example
+
+```json Request
+PUT /movies/1
+{
+  "title": "The Matrix Reloaded",
+  "releaseDate": "2003-05-15",
+  "rating": 4.2
+}
+```
+
+```json Response (200 OK)
+{
+  "title": "The Matrix Reloaded",
+  "duration": 138,
+  "genre": "SCI_FI",
+  "releaseDate": "2003-05-15",
+  "rating": 4.2,
+  "status": true
+}
+```
+
+## Additional Validation Annotations
+
+<CardGroup cols={2}>
+  <Card title="@NotEmpty" icon="circle-exclamation">
+    Validates strings, collections, maps, or arrays are not null and not empty.
+  </Card>
+  
+  <Card title="@Size(min, max)" icon="ruler">
+    Validates size of strings, collections, maps, or arrays.
+  </Card>
+  
+  <Card title="@Email" icon="envelope">
+    Validates that a string is a well-formed email address.
+  </Card>
+  
+  <Card title="@Pattern(regexp)" icon="code">
+    Validates that a string matches a regular expression.
+  </Card>
+  
+  <Card title="@Positive / @Negative" icon="plus-minus">
+    Validates that a number is strictly positive or negative.
+  </Card>
+  
+  <Card title="@Future / @Past" icon="calendar">
+    Validates that a date is strictly in the future or past.
+  </Card>
+</CardGroup>
+
+## Custom Validation Example
+
+You can create custom validators for complex business rules:
+
+```java @ValidGenre.java
+@Target({ElementType.FIELD, ElementType.PARAMETER})
+@Retention(RetentionPolicy.RUNTIME)
+@Constraint(validatedBy = GenreValidator.class)
+public @interface ValidGenre {
+    String message() default "Invalid genre";
+    Class<?>[] groups() default {};
+    Class<? extends Payload>[] payload() default {};
+}
+```
+
+```java GenreValidator.java
+public class GenreValidator implements ConstraintValidator<ValidGenre, Genre> {
+    @Override
+    public boolean isValid(Genre genre, ConstraintValidatorContext context) {
+        if (genre == null) return true; // Let @NotNull handle null checks
+        
+        // Custom business logic
+        return Arrays.asList(Genre.values()).contains(genre);
+    }
+}
+```
+
+## Validation Groups
+
+For different validation rules in different contexts:
+
+```java
+public interface CreateValidation {}
+public interface UpdateValidation {}
+
+public record MovieDto(
+        @NotNull(groups = CreateValidation.class)
+        @Null(groups = UpdateValidation.class)
+        Long id,
+        
+        @NotBlank(groups = {CreateValidation.class, UpdateValidation.class})
+        String title
+) {}
+```
+
+```java
+@PostMapping
+public ResponseEntity<MovieDto> create(
+        @Validated(CreateValidation.class) @RequestBody MovieDto movieDto) {
+    // ...
+}
+```
+
+<Tip>
+Use validation groups when the same DTO is used for multiple operations with different validation requirements.
+</Tip>
+
+## Best Practices
+
+<Steps>
+  <Step title="Validate at the boundary">
+    Apply validation on controller parameters (DTOs) to catch bad data before it enters your application.
+  </Step>
+  
+  <Step title="Provide clear messages">
+    Always include custom error messages that are meaningful to API consumers.
+  </Step>
+  
+  <Step title="Centralize error handling">
+    Use `@RestControllerAdvice` to handle validation exceptions consistently across all endpoints.
+  </Step>
+  
+  <Step title="Don't over-validate">
+    Use validation for structural correctness (format, range). Use business logic for business rules.
+  </Step>
+  
+  <Step title="Test validation">
+    Write tests for both valid and invalid inputs to ensure validation works as expected.
+  </Step>
+</Steps>
+
+## Further Reading
+
+<CardGroup cols={2}>
+  <Card title="Bean Validation Specification" icon="book" href="https://beanvalidation.org/">
+    Official Jakarta Bean Validation documentation
+  </Card>
+  
+  <Card title="Spring Validation Guide" icon="leaf" href="https://spring.io/guides/gs/validating-form-input/">
+    Spring's guide to validation
+  </Card>
+  
+  <Card title="Hibernate Validator" icon="book-open" href="https://hibernate.org/validator/">
+    The reference implementation of Bean Validation
+  </Card>
+</CardGroup>

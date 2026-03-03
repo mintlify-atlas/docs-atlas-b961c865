@@ -1,0 +1,102 @@
+---
+title: 'Authentication'
+description: 'Learn about authentication requirements for the MoviePlay API'
+---
+
+## Current Implementation
+
+<Warning>
+  The MoviePlay API currently does not implement authentication. All endpoints are publicly accessible without requiring API keys, tokens, or credentials.
+</Warning>
+
+The API is currently configured with the base path:
+
+```
+/movie-play/api
+```
+
+All endpoints can be accessed directly without any authentication headers.
+
+## Example Request
+
+You can make requests directly to any endpoint without authentication:
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET http://localhost:8080/movie-play/api/movies/all
+```
+
+```javascript JavaScript
+fetch('http://localhost:8080/movie-play/api/movies/all')
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+response = requests.get('http://localhost:8080/movie-play/api/movies/all')
+movies = response.json()
+```
+
+</CodeGroup>
+
+## Security Considerations
+
+<Note>
+  For production environments, it is strongly recommended to implement authentication and authorization mechanisms.
+</Note>
+
+### Recommended Implementation Options
+
+When implementing authentication in the future, consider these approaches:
+
+#### 1. Spring Security with JWT
+
+Implement JSON Web Token (JWT) based authentication:
+
+- Add `spring-boot-starter-security` dependency
+- Configure JWT token generation and validation
+- Protect endpoints with role-based access control
+- Require `Authorization: Bearer <token>` header
+
+#### 2. API Key Authentication
+
+Simple API key validation for service-to-service communication:
+
+- Generate unique API keys for clients
+- Validate `X-API-Key` header on each request
+- Store API keys securely with rate limiting
+
+#### 3. OAuth 2.0
+
+For third-party integrations:
+
+- Implement OAuth 2.0 authorization flows
+- Support multiple providers (Google, GitHub, etc.)
+- Use Spring Security OAuth2 client
+
+## Configuration
+
+The application is configured in `application.properties`:
+
+```properties
+spring.profiles.active=prod
+spring.application.name=MoviePlay
+server.servlet.context-path=/movie-play/api
+```
+
+<Note>
+  When authentication is implemented, remember to update the base path configuration and add security filter chains to protect your endpoints.
+</Note>
+
+## Next Steps
+
+To add authentication to MoviePlay:
+
+1. Add Spring Security dependency to `build.gradle`
+2. Create a `SecurityConfig` class to configure security rules
+3. Implement user authentication and authorization logic
+4. Update all API documentation to include authentication requirements
+5. Add authentication examples to endpoint documentation

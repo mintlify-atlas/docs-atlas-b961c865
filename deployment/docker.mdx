@@ -1,0 +1,194 @@
+---
+title: Docker Setup
+description: Deploy MoviePlay API using Docker and Docker Compose
+---
+
+## Overview
+
+MoviePlay API uses a multi-stage Docker build to create an optimized production image. The application is containerized with all dependencies and can be deployed alongside PostgreSQL using Docker Compose.
+
+## Docker Image Build
+
+The Dockerfile uses a two-stage build process:
+
+<Steps>
+  <Step title="Build Stage">
+    Uses `gradle:9.3.0-jdk21` to compile the application with Gradle 8.14.2+ and JDK 21
+    
+    ```dockerfile
+    FROM gradle:9.3.0-jdk21 AS build
+    COPY --chown=gradle:gradle . /app
+    WORKDIR /app
+    RUN gradle bootJar --no-daemon
+    ```
+  </Step>
+  
+  <Step title="Runtime Stage">
+    Uses `eclipse-temurin:21-jdk` for a lighter production image with only the JAR file
+    
+    ```dockerfile
+    FROM eclipse-temurin:21-jdk
+    WORKDIR /app
+    COPY --from=build /app/build/libs/*.jar movie_play.jar
+    EXPOSE 8080
+    ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "movie_play.jar"]
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  The Docker image automatically sets the Spring profile to `prod` via the `-Dspring.profiles.active=prod` flag.
+</Note>
+
+## Building the Image
+
+To build the Docker image manually:
+
+<CodeGroup>
+```bash Build Image
+docker build -t movieplay-api .
+```
+
+```bash Build with Tag
+docker build -t movieplay-api:1.0.0 .
+```
+</CodeGroup>
+
+## Docker Compose Deployment
+
+The `docker-compose.yaml` file defines the PostgreSQL database service:
+
+```yaml docker-compose.yaml
+services:
+  postgres:
+    image: 'postgres:latest'
+    restart: unless-stopped
+    environment:
+      - 'POSTGRES_DB=movie_play_db'
+      - 'POSTGRES_PASSWORD=password'
+      - 'POSTGRES_USER=psantana'
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/data/postgres
+volumes:
+  pgdata:
+```
+
+### Starting Services
+
+<Steps>
+  <Step title="Start PostgreSQL">
+    Launch the PostgreSQL database:
+    
+    ```bash
+    docker-compose up -d
+    ```
+  </Step>
+  
+  <Step title="Build and Run Application">
+    Build the application image and run it:
+    
+    ```bash
+    docker build -t movieplay-api .
+    docker run -p 8080:8080 \
+      --network host \
+      movieplay-api
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Using `--network host` allows the containerized application to connect to the PostgreSQL container running on localhost:5432.
+</Note>
+
+## Port Mappings
+
+| Service | Container Port | Host Port | Description |
+|---------|---------------|-----------|-------------|
+| MoviePlay API | 8080 | 8080 | Main application server |
+| PostgreSQL | 5432 | 5432 | Database server |
+
+<Warning>
+  The application serves on `/movie-play/api` context path, so the full URL will be:
+  ```
+  http://localhost:8080/movie-play/api
+  ```
+</Warning>
+
+## Complete Stack
+
+To run the complete stack with both database and application:
+
+```yaml docker-compose-full.yaml
+services:
+  postgres:
+    image: 'postgres:latest'
+    restart: unless-stopped
+    environment:
+      - 'POSTGRES_DB=movie_play_db'
+      - 'POSTGRES_PASSWORD=password'
+      - 'POSTGRES_USER=psantana'
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/data/postgres
+    networks:
+      - movieplay-network
+  
+  app:
+    build: .
+    ports:
+      - '8080:8080'
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/movie_play_db
+      - SPRING_DATASOURCE_USERNAME=psantana
+      - SPRING_DATASOURCE_PASSWORD=password
+    networks:
+      - movieplay-network
+
+volumes:
+  pgdata:
+
+networks:
+  movieplay-network:
+    driver: bridge
+```
+
+Run with:
+
+```bash
+docker-compose -f docker-compose-full.yaml up --build
+```
+
+## Verification
+
+Once the containers are running, verify the deployment:
+
+<CodeGroup>
+```bash Check Containers
+docker ps
+```
+
+```bash View Logs
+docker logs <container-id>
+```
+
+```bash Test API
+curl http://localhost:8080/movie-play/api/movies
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Configure PostgreSQL and understand the schema
+  </Card>
+  <Card title="Environment Config" icon="gear" href="/deployment/environment-config">
+    Learn about Spring profiles and configuration
+  </Card>
+</CardGroup>

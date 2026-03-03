@@ -1,0 +1,56 @@
+---
+title: 'API Overview'
+description: 'MoviePlay API endpoints and reference documentation'
+---
+
+## Base URL
+
+All API requests should be made to:
+
+```
+https://movieplay-424k.onrender.com/movie-play/api
+```
+
+## Interactive API Documentation
+
+Explore and test the API using our interactive Swagger UI:
+
+<Card title="Swagger UI" icon="swagger" href="https://movieplay-424k.onrender.com/movie-play/api/swagger-ui/index.html">
+  Interactive API documentation with live testing
+</Card>
+
+## Available Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Get All Movies" icon="list" href="/api-reference/movies/get-all-movies">
+    Retrieve all movies in the database
+  </Card>
+  
+  <Card title="Get Movie by ID" icon="film" href="/api-reference/movies/get-movie-by-id">
+    Retrieve a specific movie by its ID
+  </Card>
+  
+  <Card title="Create Movie" icon="plus" href="/api-reference/movies/create-movie">
+    Add a new movie to the database
+  </Card>
+  
+  <Card title="Update Movie" icon="pen" href="/api-reference/movies/update-movie">
+    Update an existing movie's information
+  </Card>
+  
+  <Card title="Delete Movie" icon="trash" href="/api-reference/movies/delete-movie">
+    Remove a movie from the database
+  </Card>
+  
+  <Card title="AI Movie Suggestions" icon="wand-magic-sparkles" href="/api-reference/ai/suggest-movies">
+    Get personalized movie recommendations using AI
+  </Card>
+</CardGroup>
+
+## Response Format
+
+All API responses are in JSON format. Successful responses return appropriate HTTP status codes (200, 201, 204) along with the requested data. Error responses include descriptive status codes (404, 400, etc.).
+
+## Authentication
+
+Currently, the MoviePlay API does not require authentication. All endpoints are publicly accessible.

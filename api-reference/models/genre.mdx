@@ -1,0 +1,51 @@
+---
+title: 'Genre'
+description: 'Movie genre enumeration'
+---
+
+## Genre
+
+The `Genre` enum defines the available movie genres in the MoviePlay API.
+
+### Values
+
+<ResponseField name="ACTION" type="enum">
+  Action movies
+</ResponseField>
+
+<ResponseField name="COMEDY" type="enum">
+  Comedy movies
+</ResponseField>
+
+<ResponseField name="DRAMA" type="enum">
+  Drama movies
+</ResponseField>
+
+<ResponseField name="ANIMATED" type="enum">
+  Animated movies
+</ResponseField>
+
+<ResponseField name="HORROR" type="enum">
+  Horror movies
+</ResponseField>
+
+<ResponseField name="SCI_FI" type="enum">
+  Science fiction movies
+</ResponseField>
+
+### Usage
+
+The Genre enum is used in the [MovieDto](/api-reference/models/movie) to specify the movie's genre.
+
+### Example
+
+```json
+{
+  "title": "The Dark Knight",
+  "duration": 152,
+  "genre": "ACTION",
+  "releaseDate": "2008-07-18",
+  "rating": 9.0,
+  "status": true
+}
+```

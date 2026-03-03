@@ -1,0 +1,339 @@
+---
+title: 'MapStruct DTO Mapping'
+description: 'Understand how MoviePlay uses MapStruct to decouple the persistence layer from the API layer'
+---
+
+## Overview
+
+MoviePlay uses [MapStruct](https://mapstruct.org/) to convert between database entities and Data Transfer Objects (DTOs). This pattern decouples your persistence model from your API contract, allowing each to evolve independently.
+
+<Note>
+MapStruct is a compile-time code generator that creates type-safe bean mappers. Unlike runtime reflection-based mappers, MapStruct generates Java code at compile time for better performance and type safety.
+</Note>
+
+## Why Use DTOs?
+
+The Entity-to-DTO pattern provides several benefits:
+
+<CardGroup cols={2}>
+  <Card title="API Stability" icon="lock">
+    Change database schema without breaking API contracts.
+  </Card>
+  
+  <Card title="Security" icon="shield-check">
+    Prevent accidental exposure of sensitive entity fields.
+  </Card>
+  
+  <Card title="Clean API" icon="sparkles">
+    Expose only relevant fields to API consumers.
+  </Card>
+  
+  <Card title="Performance" icon="gauge">
+    Compile-time generation means zero reflection overhead.
+  </Card>
+</CardGroup>
+
+## The Mapping Pattern
+
+### Database Entity (Spanish fields)
+
+The `MovieEntity` uses Spanish field names matching the database schema:
+
+```java MovieEntity.java
+@Entity
+@Table(name = "movie_play_peliculas")
+public class MovieEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, length = 150, unique = true)
+    private String titulo;  // Spanish: title
+    
+    @Column(nullable = false, precision = 3)
+    private Integer duracion;  // Spanish: duration
+    
+    @Column(nullable = false, length = 40)
+    private String genero;  // Spanish: genre (stored as string)
+    
+    @Column(name = "fecha_estreno")
+    private LocalDate fechaEstreno;  // Spanish: release date
+    
+    @Column(precision = 3, scale = 2)
+    private BigDecimal clasificacion;  // Spanish: rating
+    
+    @Column(nullable = false, length = 1)
+    private String estado;  // Spanish: status ("D" or "N")
+    
+    // Getters and setters...
+}
+```
+
+### API DTO (English fields with enums)
+
+The `MovieDto` exposes a clean English API with proper types:
+
+```java MovieDto.java
+package com.psantana.movieplay.domain.dto;
+
+import com.psantana.movieplay.domain.Genre;
+import java.time.LocalDate;
+
+public record MovieDto(
+        String title,           // Mapped from "titulo"
+        Integer duration,       // Mapped from "duracion"
+        Genre genre,           // Mapped from "genero" string to Genre enum
+        LocalDate releaseDate, // Mapped from "fechaEstreno"
+        Double rating,         // Mapped from "clasificacion"
+        Boolean status        // Mapped from "estado" ("D"/"N" to true/false)
+) {
+}
+```
+
+<Tip>
+Using Java records for DTOs provides immutability, concise syntax, and automatic implementations of `equals()`, `hashCode()`, and `toString()`.
+</Tip>
+
+## The MovieMapper
+
+The `MovieMapper` interface defines bidirectional mappings:
+
+```java MovieMapper.java
+package com.psantana.movieplay.persistence.mapper;
+
+import com.psantana.movieplay.domain.dto.MovieDto;
+import com.psantana.movieplay.domain.dto.UpdateMovieDto;
+import com.psantana.movieplay.persistence.entity.MovieEntity;
+import org.mapstruct.*;
+import java.util.List;
+
+@Mapper(componentModel = "spring", uses = {GenreMapper.class, StatusMapper.class})
+public interface MovieMapper {
+
+    // Entity to DTO conversion
+    @Mapping(source = "titulo", target = "title")
+    @Mapping(source = "duracion", target = "duration")
+    @Mapping(source = "genero", target = "genre", qualifiedByName = "stringToGenre")
+    @Mapping(source = "fechaEstreno", target = "releaseDate")
+    @Mapping(source = "clasificacion", target = "rating")
+    @Mapping(source = "estado", target = "status", qualifiedByName = "stringToStatus")
+    MovieDto toDto(MovieEntity entity);
+
+    // Batch conversion
+    List<MovieDto> toDto(Iterable<MovieEntity> entities);
+
+    // DTO to Entity conversion (inverse mappings)
+    @InheritInverseConfiguration
+    @Mapping(source = "genre", target = "genero", qualifiedByName = "genreToString")
+    @Mapping(source = "status", target = "estado", qualifiedByName = "statusToString")
+    MovieEntity toEntity(MovieDto dto);
+
+    // Partial update from UpdateMovieDto
+    @Mapping(source = "title", target = "titulo")
+    @Mapping(source = "releaseDate", target = "fechaEstreno")
+    @Mapping(source = "rating", target = "clasificacion")
+    void updateEntityFromDto(UpdateMovieDto dto, @MappingTarget MovieEntity entity);
+}
+```
+
+### Key Annotations Explained
+
+<AccordionGroup>
+  <Accordion title="@Mapper(componentModel = 'spring')">
+    Generates a Spring bean that can be injected via dependency injection. MapStruct creates the implementation class at compile time.
+  </Accordion>
+
+  <Accordion title="uses = {GenreMapper.class, StatusMapper.class}">
+    Tells MapStruct to use these helper mappers for complex field transformations. These handle the enum and boolean conversions.
+  </Accordion>
+
+  <Accordion title="@Mapping(source = 'field', target = 'field')">
+    Maps fields with different names between source and target objects. Handles the Spanish-to-English translation.
+  </Accordion>
+
+  <Accordion title="qualifiedByName = 'methodName'">
+    References a specific mapping method for complex transformations (like String to Enum conversion).
+  </Accordion>
+
+  <Accordion title="@InheritInverseConfiguration">
+    Reuses the inverse of previously defined mappings, reducing duplication. Perfect for bidirectional conversions.
+  </Accordion>
+
+  <Accordion title="@MappingTarget">
+    Updates an existing object instead of creating a new one. Essential for PATCH/PUT operations.
+  </Accordion>
+</AccordionGroup>
+
+## Custom Mapper: GenreMapper
+
+The `GenreMapper` handles conversion between database strings and the `Genre` enum:
+
+```java GenreMapper.java
+package com.psantana.movieplay.persistence.mapper;
+
+import com.psantana.movieplay.domain.Genre;
+import org.mapstruct.Named;
+
+public class GenreMapper {
+    @Named("stringToGenre")
+    public static Genre stringToGenre(String genre) {
+        if (genre == null) return null;
+
+        return switch (genre.toUpperCase()) {
+            case "ACCION" -> Genre.ACTION;
+            case "COMEDIA" -> Genre.COMEDY;
+            case "DRAMA" -> Genre.DRAMA;
+            case "ANIMADA" -> Genre.ANIMATED;
+            case "TERROR" -> Genre.HORROR;
+            case "CIENCIA_FICCION" -> Genre.SCI_FI;
+            default -> null;
+        };
+    }
+
+    @Named("genreToString")
+    public static String genreToString(Genre genre) {
+        if (genre == null) return null;
+
+        return switch (genre) {
+            case ACTION -> "ACCION";
+            case COMEDY -> "COMEDIA";
+            case DRAMA -> "DRAMA";
+            case ANIMATED -> "ANIMADA";
+            case HORROR -> "TERROR";
+            case SCI_FI -> "CIENCIA_FICCION";
+            default -> null;
+        };
+    }
+}
+```
+
+<Note>
+The `@Named` annotation allows MapStruct to reference these methods via `qualifiedByName` in the main mapper.
+</Note>
+
+## Custom Mapper: StatusMapper
+
+The `StatusMapper` converts between single-character database values and boolean status:
+
+```java StatusMapper.java
+package com.psantana.movieplay.persistence.mapper;
+
+import org.mapstruct.Named;
+
+public class StatusMapper {
+    @Named("stringToStatus")
+    public static Boolean stringToStatus(String estado) {
+        if (estado == null) return false;
+        if (estado.equalsIgnoreCase("D")) return true;
+        return false;
+    }
+
+    @Named("statusToString")
+    public static String statusToString(Boolean status) {
+        if (status == null) return "N";
+        if (status == true) return "D";
+        return "N";
+    }
+}
+```
+
+<Tip>
+**Database Convention**: The database uses `"D"` (Disponible/Available) for active movies and `"N"` (No disponible/Not available) for inactive ones. The API exposes this as a simple boolean.
+</Tip>
+
+## Usage in Repository Layer
+
+The mapper is injected and used in the repository implementation:
+
+```java MovieEntityRepository.java
+@Repository
+public class MovieEntityRepository implements MovieRepository {
+    private final CrudMovieEntity crudMovieEntity;
+    private final MovieMapper movieMapper;
+
+    public MovieEntityRepository(CrudMovieEntity crudMovieEntity, MovieMapper movieMapper) {
+        this.crudMovieEntity = crudMovieEntity;
+        this.movieMapper = movieMapper;
+    }
+
+    @Override
+    public List<MovieDto> getAll() {
+        return movieMapper.toDto(crudMovieEntity.findAll());
+    }
+
+    @Override
+    public Optional<MovieDto> getById(Long id) {
+        return crudMovieEntity.findById(id)
+                .map(movieMapper::toDto);
+    }
+
+    @Override
+    public MovieDto save(MovieDto movieDto) {
+        MovieEntity entity = movieMapper.toEntity(movieDto);
+        return movieMapper.toDto(crudMovieEntity.save(entity));
+    }
+}
+```
+
+## The Genre Enum
+
+The API uses a clean enum instead of database strings:
+
+```java Genre.java
+package com.psantana.movieplay.domain;
+
+public enum Genre {
+    ACTION,
+    COMEDY,
+    DRAMA,
+    ANIMATED,
+    HORROR,
+    SCI_FI
+}
+```
+
+## Benefits of This Pattern
+
+<Steps>
+  <Step title="Database Independence">
+    The API layer doesn't know about Spanish field names or single-character status codes. You can refactor the database without changing the API.
+  </Step>
+  
+  <Step title="Type Safety">
+    The API uses proper enums (`Genre`) and booleans (`status`) instead of magic strings. Compile-time validation prevents bugs.
+  </Step>
+  
+  <Step title="Performance">
+    MapStruct generates plain Java code at compile time. No reflection, no runtime overhead.
+  </Step>
+  
+  <Step title="Maintainability">
+    Centralized mapping logic in mapper interfaces. Easy to update when requirements change.
+  </Step>
+</Steps>
+
+## Compile-Time Generation
+
+MapStruct generates implementation classes during compilation. After building your project, you'll find generated classes like:
+
+```
+target/generated-sources/annotations/
+  com/psantana/movieplay/persistence/mapper/
+    MovieMapperImpl.java
+```
+
+<Warning>
+Don't modify generated classes directly. They're regenerated on every build. All changes should go in the mapper interface.
+</Warning>
+
+## Further Reading
+
+<CardGroup cols={2}>
+  <Card title="MapStruct Documentation" icon="book" href="https://mapstruct.org/documentation/">
+    Official MapStruct documentation
+  </Card>
+  
+  <Card title="MapStruct Spring Integration" icon="leaf" href="https://mapstruct.org/documentation/stable/reference/html/#spring">
+    Using MapStruct with Spring
+  </Card>
+</CardGroup>

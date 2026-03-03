@@ -1,0 +1,134 @@
+---
+title: 'Update Movie'
+api: 'PUT /movies/{id}'
+description: 'Update an existing movie information'
+---
+
+## Endpoint
+
+```
+PUT /movie-play/api/movies/{id}
+```
+
+## Description
+
+Updates the information of an existing movie identified by its ID. This endpoint allows partial updates of movie details including title, release date, and rating.
+
+## Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the movie to update
+  
+  Example: `9`
+</ParamField>
+
+## Request Body
+
+<ParamField body="title" type="string" required>
+  The updated title of the movie
+  
+  Cannot be blank
+  
+  Example: `"The Matrix Reloaded"`
+</ParamField>
+
+<ParamField body="releaseDate" type="string" required>
+  Updated release date in ISO 8601 format (YYYY-MM-DD)
+  
+  Must be a past or present date (not in the future)
+  
+  Example: `"2003-05-15"`
+</ParamField>
+
+<ParamField body="rating" type="number" required>
+  Updated movie rating
+  
+  Must be between 0.0 and 5.0 (inclusive)
+  
+  Example: `4.2`
+</ParamField>
+
+## Response
+
+<ResponseField name="movie" type="object">
+  The updated movie object
+  
+  <Expandable title="Movie Object">
+    <ResponseField name="title" type="string">
+      The updated title of the movie
+    </ResponseField>
+    
+    <ResponseField name="duration" type="integer">
+      Duration of the movie in minutes
+    </ResponseField>
+    
+    <ResponseField name="genre" type="string">
+      Genre of the movie
+    </ResponseField>
+    
+    <ResponseField name="releaseDate" type="string">
+      Updated release date in ISO 8601 format
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number">
+      Updated movie rating (0.0 to 5.0)
+    </ResponseField>
+    
+    <ResponseField name="status" type="boolean">
+      Availability status of the movie
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Validation Rules
+
+- **title**: Cannot be blank
+- **releaseDate**: Must be a past or present date (not in the future)
+- **rating**: Must be between 0 and 5 (inclusive)
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200  | Success - Movie updated successfully |
+| 400  | Bad Request - Validation failed (invalid rating, future date, or blank title) |
+| 404  | Not Found - Movie with specified ID does not exist |
+
+## Example Request
+
+```bash cURL
+curl -X PUT https://movieplay-424k.onrender.com/movie-play/api/movies/9 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "The Matrix Reloaded",
+    "releaseDate": "2003-05-15",
+    "rating": 4.2
+  }'
+```
+
+## Example Response
+
+<CodeGroup>
+```json 200 OK
+{
+  "title": "The Matrix Reloaded",
+  "duration": 138,
+  "genre": "SCI_FI",
+  "releaseDate": "2003-05-15",
+  "rating": 4.2,
+  "status": true
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "The rating cannot be higher than 5"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Movie not found"
+}
+```
+</CodeGroup>

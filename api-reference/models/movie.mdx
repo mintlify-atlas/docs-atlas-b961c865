@@ -1,0 +1,47 @@
+---
+title: 'MovieDto'
+description: 'Movie data transfer object'
+---
+
+## MovieDto
+
+The `MovieDto` record represents a movie in the MoviePlay API.
+
+### Fields
+
+<ResponseField name="title" type="string" required>
+  The title of the movie
+</ResponseField>
+
+<ResponseField name="duration" type="integer" required>
+  The duration of the movie in minutes
+</ResponseField>
+
+<ResponseField name="genre" type="Genre" required>
+  The genre of the movie. See [Genre](/api-reference/models/genre) for available values
+</ResponseField>
+
+<ResponseField name="releaseDate" type="string" required>
+  The release date of the movie in ISO 8601 format (YYYY-MM-DD)
+</ResponseField>
+
+<ResponseField name="rating" type="number" required>
+  The rating of the movie (typically 0.0 to 10.0)
+</ResponseField>
+
+<ResponseField name="status" type="boolean" required>
+  The status of the movie (active/inactive)
+</ResponseField>
+
+### Example
+
+```json
+{
+  "title": "Inception",
+  "duration": 148,
+  "genre": "SCI_FI",
+  "releaseDate": "2010-07-16",
+  "rating": 8.8,
+  "status": true
+}
+```

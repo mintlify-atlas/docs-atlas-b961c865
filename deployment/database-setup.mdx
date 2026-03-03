@@ -1,0 +1,244 @@
+---
+title: Database Setup
+description: Configure PostgreSQL for MoviePlay API
+---
+
+## Overview
+
+MoviePlay API uses PostgreSQL as its primary database. The application leverages Spring Data JPA and Hibernate for ORM, with automatic schema management in development.
+
+## PostgreSQL Requirements
+
+<CardGroup cols={2}>
+  <Card title="Version" icon="database">
+    PostgreSQL 12+ (latest recommended)
+  </Card>
+  <Card title="Port" icon="network-wired">
+    Default: 5432
+  </Card>
+</CardGroup>
+
+## Quick Start with Docker Compose
+
+The easiest way to set up PostgreSQL is using the provided `docker-compose.yaml`:
+
+<Steps>
+  <Step title="Start PostgreSQL Container">
+    ```bash
+    docker-compose up -d
+    ```
+  </Step>
+  
+  <Step title="Verify Database is Running">
+    ```bash
+    docker ps | grep postgres
+    ```
+  </Step>
+  
+  <Step title="Connect to Database (Optional)">
+    ```bash
+    docker exec -it <container-id> psql -U psantana -d movie_play_db
+    ```
+  </Step>
+</Steps>
+
+## Database Configuration
+
+### Development Environment
+
+The development profile (`application-dev.properties`) uses the following database configuration:
+
+```properties
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.datasource.url=jdbc:postgresql://localhost:5432/movie_play_db
+spring.datasource.username=psantana
+spring.datasource.password=password
+```
+
+<Warning>
+  These credentials are for **development only**. Never use these in production!
+</Warning>
+
+### Production Environment
+
+The production profile (`application-prod.properties`) connects to a remote database:
+
+```properties
+spring.datasource.url=jdbc:postgresql://dpg-d6epc25m5p6s73a05am0-a:5432/movie_play_db_zrkd
+spring.datasource.username=piero
+spring.datasource.password=vc9UcGQK4WFkgrTkW4RRzXtOeYCKP8xb
+```
+
+<Note>
+  Production credentials should be managed through environment variables or a secrets management system.
+</Note>
+
+## Database Credentials Summary
+
+<Tabs>
+  <Tab title="Development">
+    | Property | Value |
+    |----------|-------|
+    | **Host** | localhost |
+    | **Port** | 5432 |
+    | **Database** | movie_play_db |
+    | **Username** | psantana |
+    | **Password** | password |
+  </Tab>
+  
+  <Tab title="Production">
+    | Property | Value |
+    |----------|-------|
+    | **Host** | dpg-d6epc25m5p6s73a05am0-a |
+    | **Port** | 5432 |
+    | **Database** | movie_play_db_zrkd |
+    | **Username** | piero |
+    | **Password** | vc9UcGQK4WFkgrTkW4RRzXtOeYCKP8xb |
+  </Tab>
+</Tabs>
+
+## Schema Management
+
+MoviePlay API uses Hibernate's automatic schema management:
+
+### Auto-DDL Configuration
+
+Both dev and prod profiles use:
+
+```properties
+spring.jpa.hibernate.ddl-auto=update
+spring.sql.init.mode=always
+```
+
+<Info>
+  **`ddl-auto=update`** means Hibernate will automatically:
+  - Create tables if they don't exist
+  - Add new columns when entities are modified
+  - **Not** remove existing columns (safer for production)
+</Info>
+
+### JPA Settings (Development)
+
+Development mode enables SQL logging for debugging:
+
+```properties
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+```
+
+This outputs formatted SQL queries to the console, helping with development and troubleshooting.
+
+## Manual Database Setup
+
+If you prefer to set up PostgreSQL manually:
+
+<Steps>
+  <Step title="Install PostgreSQL">
+    Install PostgreSQL on your system:
+    
+    <CodeGroup>
+    ```bash Ubuntu/Debian
+    sudo apt update
+    sudo apt install postgresql postgresql-contrib
+    ```
+    
+    ```bash macOS (Homebrew)
+    brew install postgresql@15
+    brew services start postgresql@15
+    ```
+    
+    ```bash Windows
+    # Download installer from postgresql.org
+    # Or use chocolatey:
+    choco install postgresql
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Create Database and User">
+    ```sql
+    -- Connect to PostgreSQL
+    psql -U postgres
+    
+    -- Create user
+    CREATE USER psantana WITH PASSWORD 'password';
+    
+    -- Create database
+    CREATE DATABASE movie_play_db OWNER psantana;
+    
+    -- Grant privileges
+    GRANT ALL PRIVILEGES ON DATABASE movie_play_db TO psantana;
+    ```
+  </Step>
+  
+  <Step title="Verify Connection">
+    ```bash
+    psql -U psantana -d movie_play_db -h localhost
+    ```
+  </Step>
+</Steps>
+
+## Schema Structure
+
+The database schema is automatically created from JPA entities. Key tables include:
+
+- **movies** - Movie catalog with details
+- **reviews** - User reviews for movies
+- **users** - User accounts (if implemented)
+- **categories/genres** - Movie classifications
+
+<Note>
+  You don't need to manually create tables. Hibernate will generate them automatically based on the `@Entity` annotations in the code.
+</Note>
+
+## Connection Pooling
+
+Spring Boot automatically configures HikariCP as the connection pool. Default settings are optimized for most use cases, but you can customize:
+
+```properties
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=30000
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Refused">
+    **Problem**: `Connection refused: localhost:5432`
+    
+    **Solutions**:
+    - Verify PostgreSQL is running: `docker ps` or `systemctl status postgresql`
+    - Check if port 5432 is accessible: `nc -zv localhost 5432`
+    - Ensure firewall allows connections
+  </Accordion>
+  
+  <Accordion title="Authentication Failed">
+    **Problem**: `FATAL: password authentication failed for user`
+    
+    **Solutions**:
+    - Verify credentials in `application-{profile}.properties`
+    - Check PostgreSQL `pg_hba.conf` authentication settings
+    - Reset user password if needed
+  </Accordion>
+  
+  <Accordion title="Database Does Not Exist">
+    **Problem**: `FATAL: database "movie_play_db" does not exist`
+    
+    **Solutions**:
+    - Create database: `CREATE DATABASE movie_play_db;`
+    - Verify database name matches configuration
+    - If using Docker Compose, rebuild: `docker-compose down -v && docker-compose up -d`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Config" icon="gear" href="/deployment/environment-config">
+    Configure Spring profiles and properties
+  </Card>
+  <Card title="Docker Setup" icon="docker" href="/deployment/docker">
+    Deploy with Docker and Docker Compose
+  </Card>
+</CardGroup>

@@ -1,0 +1,89 @@
+---
+title: 'Get Movie by ID'
+api: 'GET /movies/{id}'
+description: 'Retrieve a specific movie by its ID'
+---
+
+## Endpoint
+
+```
+GET /movie-play/api/movies/{id}
+```
+
+## Description
+
+Returns detailed information about a specific movie identified by its unique ID.
+
+## Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the movie
+  
+  Example: `9`
+</ParamField>
+
+## Response
+
+<ResponseField name="movie" type="object">
+  The requested movie object
+  
+  <Expandable title="Movie Object">
+    <ResponseField name="title" type="string" required>
+      The title of the movie
+    </ResponseField>
+    
+    <ResponseField name="duration" type="integer" required>
+      Duration of the movie in minutes
+    </ResponseField>
+    
+    <ResponseField name="genre" type="string" required>
+      Genre of the movie. Possible values: `ACTION`, `COMEDY`, `DRAMA`, `ANIMATED`, `HORROR`, `SCI_FI`
+    </ResponseField>
+    
+    <ResponseField name="releaseDate" type="string" required>
+      Release date in ISO 8601 format (YYYY-MM-DD)
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number" required>
+      Movie rating (0.0 to 5.0)
+    </ResponseField>
+    
+    <ResponseField name="status" type="boolean" required>
+      Availability status of the movie
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200  | Success - Movie found and returned |
+| 404  | Not Found - Movie with specified ID does not exist |
+
+## Example Request
+
+```bash cURL
+curl -X GET https://movieplay-424k.onrender.com/movie-play/api/movies/9
+```
+
+## Example Response
+
+<CodeGroup>
+```json 200 OK
+{
+  "title": "The Matrix",
+  "duration": 136,
+  "genre": "SCI_FI",
+  "releaseDate": "1999-03-31",
+  "rating": 4.5,
+  "status": true
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Movie not found"
+}
+```
+</CodeGroup>

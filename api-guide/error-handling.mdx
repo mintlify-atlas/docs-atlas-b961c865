@@ -1,0 +1,283 @@
+---
+title: 'Error Handling'
+description: 'Understand how MoviePlay API handles errors and exception responses'
+---
+
+## Overview
+
+MoviePlay API uses a centralized exception handling mechanism with consistent error responses across all endpoints. All errors return a structured `ApiError` object with type and message fields.
+
+## Error Response Structure
+
+All API errors follow this consistent structure:
+
+<CodeGroup>
+
+```json Single Error
+{
+  "type": "error_type",
+  "message": "Human-readable error description"
+}
+```
+
+```json Validation Errors (Array)
+[
+  {
+    "type": "title",
+    "message": "The title is required"
+  },
+  {
+    "type": "rating",
+    "message": "The rating cannot be higher than 5"
+  }
+]
+```
+
+</CodeGroup>
+
+### ApiError Structure
+
+The error response is defined by the `ApiError` record:
+
+```java ApiError.java
+package com.psantana.movieplay.web.exception;
+
+public record ApiError(
+        String type,
+        String message
+) {
+}
+```
+
+<ParamField path="type" type="string" required>
+  Error type identifier or field name for validation errors
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Human-readable error message describing what went wrong
+</ParamField>
+
+## Exception Handlers
+
+The API uses `@RestControllerAdvice` to handle exceptions globally:
+
+### Movie Already Exists (400 Bad Request)
+
+Thrown when attempting to create a movie that already exists in the database.
+
+```java RestExceptionHandle.java
+@ExceptionHandler(MovieAlreadyExistsException.class)
+public ResponseEntity<ApiError> handleException(MovieAlreadyExistsException ex) {
+    ApiError apiError = new ApiError("movie_already_exists", ex.getMessage());
+    return ResponseEntity.badRequest().body(apiError);
+}
+```
+
+<CodeGroup>
+
+```json Response Example
+{
+  "type": "movie_already_exists",
+  "message": "Movie with title Inception already exists"
+}
+```
+
+```bash cURL Example
+curl -X POST http://localhost:8080/movie-play/api/movies/save \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Inception",
+    "duration": 148,
+    "genre": "ACTION",
+    "releaseDate": "2010-07-16",
+    "rating": 4.8,
+    "status": true
+  }'
+
+# Response: 400 Bad Request
+```
+
+</CodeGroup>
+
+### Entity Not Found (404 Not Found)
+
+Thrown when a requested movie doesn't exist in the database.
+
+```java RestExceptionHandle.java
+@ExceptionHandler(EntityNotFoundException.class)
+public ResponseEntity<ApiError> handleException(EntityNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(new ApiError("movie_not_found", ex.getMessage()));
+}
+```
+
+<CodeGroup>
+
+```json Response Example
+{
+  "type": "movie_not_found",
+  "message": "Movie not found with id: 999"
+}
+```
+
+```bash cURL Example
+curl -X GET http://localhost:8080/movie-play/api/movies/999
+
+# Response: 404 Not Found
+```
+
+</CodeGroup>
+
+### Validation Errors (400 Bad Request)
+
+Thrown when request body validation fails. Returns an array of errors.
+
+```java RestExceptionHandle.java
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public ResponseEntity<List<ApiError>> handleException(MethodArgumentNotValidException ex) {
+    List<ApiError> errors = new ArrayList<>();
+    ex.getBindingResult().getFieldErrors().forEach(error -> {
+        errors.add(new ApiError(error.getField(), error.getDefaultMessage()));
+    });
+    return ResponseEntity.badRequest().body(errors);
+}
+```
+
+#### Validation Rules
+
+The `UpdateMovieDto` class defines these validation constraints:
+
+```java UpdateMovieDto.java
+public record UpdateMovieDto(
+        @NotBlank(message = "The title is required")
+        String title,
+        @PastOrPresent(message = "The release date must be earlier than the current date")
+        LocalDate releaseDate,
+        @Min(value = 0, message = "The rating cannot be less than 0")
+        @Max(value = 5, message = "The rating cannot be higher than 5")
+        Double rating
+) {
+}
+```
+
+<CodeGroup>
+
+```json Response Example
+[
+  {
+    "type": "title",
+    "message": "The title is required"
+  },
+  {
+    "type": "rating",
+    "message": "The rating cannot be higher than 5"
+  },
+  {
+    "type": "releaseDate",
+    "message": "The release date must be earlier than the current date"
+  }
+]
+```
+
+```bash cURL Example
+curl -X PUT http://localhost:8080/movie-play/api/movies/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "",
+    "rating": 6.0,
+    "releaseDate": "2030-01-01"
+  }'
+
+# Response: 400 Bad Request with validation errors array
+```
+
+</CodeGroup>
+
+### Generic Server Error (500 Internal Server Error)
+
+Catches any unexpected exceptions not handled by specific handlers.
+
+```java RestExceptionHandle.java
+@ExceptionHandler(Exception.class)
+public ResponseEntity<ApiError> handleException(Exception ex) {
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(new ApiError("error", ex.getMessage()));
+}
+```
+
+<CodeGroup>
+
+```json Response Example
+{
+  "type": "error",
+  "message": "An unexpected error occurred"
+}
+```
+
+</CodeGroup>
+
+## HTTP Status Codes
+
+The API uses standard HTTP status codes:
+
+| Status Code | Description | When Used |
+|------------|-------------|------------|
+| `200 OK` | Success | Successful GET, PUT requests |
+| `201 Created` | Resource created | Successful POST /movies/save |
+| `204 No Content` | Success with no body | Empty list, successful DELETE |
+| `400 Bad Request` | Invalid request | Validation errors, duplicate movie |
+| `404 Not Found` | Resource not found | Movie ID doesn't exist |
+| `500 Internal Server Error` | Server error | Unexpected exceptions |
+
+## Error Handling Best Practices
+
+<Note>
+  Always check the HTTP status code and the `type` field in error responses to handle errors appropriately in your client application.
+</Note>
+
+### Client Implementation Example
+
+```javascript JavaScript
+async function updateMovie(id, movieData) {
+  try {
+    const response = await fetch(`/movie-play/api/movies/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(movieData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      
+      // Handle validation errors (array)
+      if (Array.isArray(error)) {
+        error.forEach(err => {
+          console.error(`${err.type}: ${err.message}`);
+        });
+        return;
+      }
+      
+      // Handle single errors
+      switch (error.type) {
+        case 'movie_not_found':
+          console.error('Movie not found');
+          break;
+        case 'movie_already_exists':
+          console.error('A movie with this title already exists');
+          break;
+        default:
+          console.error('An error occurred:', error.message);
+      }
+      return;
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Network error:', err);
+  }
+}
+```
+
+<Warning>
+  Validation errors return an **array** of `ApiError` objects, while other errors return a **single** `ApiError` object. Make sure your client handles both formats.
+</Warning>

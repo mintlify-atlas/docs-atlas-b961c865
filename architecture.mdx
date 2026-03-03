@@ -1,0 +1,506 @@
+---
+title: Architecture
+description: Understanding MoviePlay's layered architecture and design patterns
+---
+
+## Overview
+
+MoviePlay follows a **layered architecture** pattern that separates concerns and creates clear boundaries between different parts of the application. This design makes the code more maintainable, testable, and easier to extend.
+
+## Architectural layers
+
+The application is organized into four main layers:
+
+```
+┌─────────────────────────────────────────────┐
+│         Web Layer (Controller)              │
+│  • REST endpoints                           │
+│  • Request/response handling                │
+│  • HTTP concerns                            │
+└─────────────────┬───────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────┐
+│       Domain Layer (Service)                │
+│  • Business logic                           │
+│  • Orchestration                            │
+│  • Domain rules                             │
+└─────────────────┬───────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────┐
+│     Repository Layer (Repository)           │
+│  • Data access abstraction                  │
+│  • Domain models (DTOs)                     │
+│  • Interface definitions                    │
+└─────────────────┬───────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────┐
+│    Persistence Layer (Entity)               │
+│  • JPA entities                             │
+│  • Database mapping                         │
+│  • Data persistence                         │
+└─────────────────────────────────────────────┘
+```
+
+## Package structure
+
+The codebase is organized to reflect this layered architecture:
+
+```
+com.psantana.movieplay
+├── web.controller          # Web layer - REST endpoints
+├── domain
+│   ├── service            # Domain layer - Business logic
+│   ├── repository         # Repository interfaces
+│   ├── dto                # Data transfer objects
+│   └── exception          # Domain exceptions
+└── persistence
+    ├── entity             # JPA entities
+    ├── mapper             # MapStruct mappers
+    └── crud               # Spring Data repositories
+```
+
+## Layer details
+
+### Web layer (Controller)
+
+The web layer handles HTTP requests and delegates to the service layer.
+
+**Location:** `web.controller.MovieController`
+
+**Responsibilities:**
+- Define REST endpoints
+- Validate HTTP requests
+- Convert HTTP responses
+- Handle API documentation annotations
+
+**Example from MovieController.java:34-40:**
+
+```java
+@GetMapping("/all")
+public ResponseEntity<List<MovieDto>> getMovies() {
+    if (this.movieService.getAll().isEmpty() || this.movieService.getAll() == null) {
+        return new ResponseEntity<>(new ArrayList<>(),HttpStatus.NO_CONTENT);
+    }
+    return ResponseEntity.ok(this.movieService.getAll());
+}
+```
+
+**Key endpoints:**
+
+<CardGroup cols={2}>
+  <Card title="GET /movies/all" icon="list">
+    Returns all movies in the catalog
+  </Card>
+  <Card title="GET /movies/{id}" icon="search">
+    Returns a specific movie by ID
+  </Card>
+  <Card title="POST /movies/save" icon="plus">
+    Creates a new movie
+  </Card>
+  <Card title="POST /movies/suggest" icon="brain">
+    Gets AI-powered recommendations
+  </Card>
+</CardGroup>
+
+### Domain layer (Service)
+
+The domain layer contains business logic and orchestrates operations.
+
+**Location:** `domain.service.MovieService`
+
+**Responsibilities:**
+- Implement business rules
+- Coordinate repository operations
+- Handle domain exceptions
+- Provide service methods for controllers
+
+**Example from MovieService.java:27-30:**
+
+```java
+public MovieDto getById(Long id){
+    return movieRepository.getById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Movie not found"));
+}
+```
+
+**Service methods:**
+
+| Method | Purpose |
+|--------|--------|
+| `getAll()` | Retrieve all movies |
+| `getById(Long id)` | Find a movie by ID, throw exception if not found |
+| `save(MovieDto dto)` | Create a new movie |
+| `update(Long id, UpdateMovieDto dto)` | Update an existing movie |
+| `delete(Long id)` | Delete a movie |
+
+<Note>
+  The service layer uses `Optional` returns from repositories and converts them to exceptions for the controller layer.
+</Note>
+
+### Repository layer
+
+The repository layer provides an abstraction over data access.
+
+**Location:** `domain.repository.MovieRepository` (interface)
+
+**Implementation:** `persistence.MovieEntityRepository`
+
+**Responsibilities:**
+- Define data access operations
+- Abstract database details from business logic
+- Return domain models (DTOs), not entities
+- Handle data validation before persistence
+
+**Interface from MovieRepository.java:9-15:**
+
+```java
+public interface MovieRepository {
+    List<MovieDto> getAll();
+    Optional<MovieDto> getById(Long id);
+    MovieDto save(MovieDto movieDto);
+    Optional<MovieDto> update(Long id, UpdateMovieDto updateMovieDto);
+    boolean delete(Long id);
+}
+```
+
+**Implementation example from MovieEntityRepository.java:40-47:**
+
+```java
+@Override
+public MovieDto save(MovieDto movieDto) {
+    if (crudMovieEntity.findMovieByTitulo(movieDto.title()) != null) {
+        throw new MovieAlreadyExistsException(movieDto.title());
+    }
+    MovieEntity movieEntity = movieMapper.toEntity(movieDto);
+    return movieMapper.toDto(crudMovieEntity.save(movieEntity));
+}
+```
+
+<Warning>
+  The repository implementation validates business rules (like duplicate titles) before persisting data.
+</Warning>
+
+### Persistence layer (Entity)
+
+The persistence layer maps to database tables using JPA.
+
+**Location:** `persistence.entity.MovieEntity`
+
+**Responsibilities:**
+- Define database schema
+- Map Java objects to database tables
+- Handle database-specific concerns (column names, constraints)
+
+**Example from MovieEntity.java:8-26:**
+
+```java
+@Entity
+@Table(name = "movie_play_peliculas")
+public class MovieEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, length = 150, unique = true)
+    private String titulo;
+    
+    @Column(nullable = false, precision = 3)
+    private Integer duracion;
+    
+    @Column(nullable = false, length = 40)
+    private String genero;
+    
+    @Column(name = "fecha_estreno")
+    private LocalDate fechaEstreno;
+    
+    @Column(precision = 3, scale = 2)
+    private BigDecimal clasificacion;
+    
+    @Column(nullable = false, length = 1)
+    private String estado;
+}
+```
+
+**Database mapping:**
+
+| Java Field | Database Column | Type | Constraints |
+|------------|----------------|------|-------------|
+| `id` | `id` | `BIGINT` | Primary key, auto-increment |
+| `titulo` | `titulo` | `VARCHAR(150)` | NOT NULL, UNIQUE |
+| `duracion` | `duracion` | `INTEGER` | NOT NULL |
+| `genero` | `genero` | `VARCHAR(40)` | NOT NULL |
+| `fechaEstreno` | `fecha_estreno` | `DATE` | - |
+| `clasificacion` | `clasificacion` | `DECIMAL(3,2)` | - |
+| `estado` | `estado` | `VARCHAR(1)` | NOT NULL |
+
+## Data flow
+
+Here's how data flows through the application when creating a movie:
+
+<Steps>
+  <Step title="Client sends HTTP request">
+    ```bash
+    POST /movies/save
+    Content-Type: application/json
+    
+    {
+      "title": "The Matrix",
+      "duration": 136,
+      "genre": "SCI_FI",
+      "releaseDate": "1999-03-31",
+      "rating": 8.7,
+      "status": true
+    }
+    ```
+  </Step>
+
+  <Step title="Controller receives and validates request">
+    `MovieController.createMovie()` receives the `MovieDto` from the request body.
+    
+    From MovieController.java:63-68:
+    ```java
+    @PostMapping("/save")
+    public ResponseEntity<MovieDto> createMovie(@RequestBody MovieDto movieDto) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(movieService.save(movieDto));
+    }
+    ```
+  </Step>
+
+  <Step title="Service applies business logic">
+    `MovieService.save()` delegates to the repository.
+    
+    From MovieService.java:32-34:
+    ```java
+    public MovieDto save(MovieDto movieDto) {
+        return movieRepository.save(movieDto);
+    }
+    ```
+  </Step>
+
+  <Step title="Repository checks constraints">
+    `MovieEntityRepository.save()` validates the movie doesn't already exist.
+    
+    From MovieEntityRepository.java:40-47:
+    ```java
+    if (crudMovieEntity.findMovieByTitulo(movieDto.title()) != null) {
+        throw new MovieAlreadyExistsException(movieDto.title());
+    }
+    ```
+  </Step>
+
+  <Step title="MapStruct converts DTO to Entity">
+    The `MovieMapper` transforms the domain model into a JPA entity.
+    
+    ```java
+    MovieEntity movieEntity = movieMapper.toEntity(movieDto);
+    ```
+  </Step>
+
+  <Step title="Entity is persisted to database">
+    Spring Data JPA saves the entity to PostgreSQL.
+    
+    ```java
+    crudMovieEntity.save(movieEntity);
+    ```
+  </Step>
+
+  <Step title="MapStruct converts Entity back to DTO">
+    The saved entity is converted back to a domain model.
+    
+    ```java
+    return movieMapper.toDto(crudMovieEntity.save(movieEntity));
+    ```
+  </Step>
+
+  <Step title="Controller returns HTTP response">
+    The DTO is serialized to JSON and returned with HTTP 201 Created.
+  </Step>
+</Steps>
+
+## MapStruct DTO mapping
+
+MoviePlay uses **MapStruct** to transform between domain models (DTOs) and persistence entities. This provides compile-time type safety and eliminates boilerplate mapping code.
+
+### Why MapStruct?
+
+<CardGroup cols={2}>
+  <Card title="Compile-time safety" icon="shield-check">
+    Mapping errors are caught at compile time, not runtime
+  </Card>
+  <Card title="High performance" icon="gauge-high">
+    Generates plain Java code without reflection overhead
+  </Card>
+  <Card title="Clean separation" icon="layer-group">
+    Domain models can differ from database schema
+  </Card>
+  <Card title="Less boilerplate" icon="code">
+    Automatic field mapping reduces manual code
+  </Card>
+</CardGroup>
+
+### Mapper interface
+
+**Location:** `persistence.mapper.MovieMapper`
+
+From MovieMapper.java:13-29:
+
+```java
+@Mapper(componentModel = "spring", uses = {GenreMapper.class, StatusMapper.class})
+public interface MovieMapper {
+
+    @Mapping(source = "titulo", target = "title")
+    @Mapping(source ="duracion"  , target ="duration" )
+    @Mapping(source ="genero"  , target ="genre", qualifiedByName = "stringToGenre")
+    @Mapping(source ="fechaEstreno" , target ="releaseDate" )
+    @Mapping(source ="clasificacion", target = "rating")
+    @Mapping(source ="estado", target = "status", qualifiedByName = "stringToStatus")
+    MovieDto toDto (MovieEntity entity);
+
+    List<MovieDto> toDto (Iterable<MovieEntity> entities);
+
+    @InheritInverseConfiguration
+    @Mapping(source ="genre"  , target ="genero", qualifiedByName = "genreToString")
+    @Mapping(source = "status", target = "estado", qualifiedByName = "statusToString")
+    MovieEntity toEntity(MovieDto dto);
+}
+```
+
+### Field mappings
+
+| Entity Field (Spanish) | DTO Field (English) | Transformation |
+|----------------------|-------------------|----------------|
+| `titulo` | `title` | Direct mapping |
+| `duracion` | `duration` | Direct mapping |
+| `genero` | `genre` | String → Enum (via GenreMapper) |
+| `fechaEstreno` | `releaseDate` | Direct mapping |
+| `clasificacion` | `rating` | BigDecimal → Double |
+| `estado` | `status` | String → Boolean (via StatusMapper) |
+
+<Note>
+  MapStruct generates the implementation at compile time. You can find the generated code in `build/generated/sources/annotationProcessor/`.
+</Note>
+
+## Domain models
+
+### MovieDto
+
+The primary domain model used throughout the application.
+
+From MovieDto.java:7-15:
+
+```java
+public record MovieDto(
+        String title,
+        Integer duration,
+        Genre genre,
+        LocalDate releaseDate,
+        Double rating,
+        Boolean status
+) {
+}
+```
+
+**Benefits of using records:**
+- Immutable by default
+- Automatic getters, equals, hashCode, toString
+- Concise syntax
+- Clear intent as data carrier
+
+### Genre enum
+
+From Genre.java:3-10:
+
+```java
+public enum Genre {
+    ACTION,
+    COMEDY,
+    DRAMA,
+    ANIMATED,
+    HORROR,
+    SCI_FI
+}
+```
+
+## AI integration
+
+MoviePlay integrates LangChain4j for AI-powered movie recommendations.
+
+**Location:** `domain.service.MoviePlayAiService`
+
+From MoviePlayAiService.java:8-22:
+
+```java
+@AiService
+public interface MoviePlayAiService {
+    @SystemMessage("""
+            Eres un experto en cine que recomienda peliculas personalizadas segun los gustos del usuario.
+            Debes recomendar como maximo 4 peliculas.
+            Solo recomienda peliculas que esten en la plataforma MoviePlay.
+            """)
+    String generateMovieSeggestion(@UserMessage String userMessage);
+}
+```
+
+**How it works:**
+
+<Steps>
+  <Step title="User sends preferences">
+    Client calls `POST /movies/suggest` with user preferences
+  </Step>
+  <Step title="Controller delegates to AI service">
+    `MovieController` forwards the request to `MoviePlayAiService`
+  </Step>
+  <Step title="LangChain4j calls OpenAI">
+    The framework sends the system message and user preferences to OpenAI
+  </Step>
+  <Step title="AI generates recommendations">
+    OpenAI returns personalized movie suggestions based on the catalog
+  </Step>
+</Steps>
+
+<Warning>
+  AI features require an OpenAI API key configured in your environment.
+</Warning>
+
+## Design patterns
+
+MoviePlay implements several design patterns:
+
+| Pattern | Usage | Location |
+|---------|-------|----------|
+| **Layered Architecture** | Separates concerns into distinct layers | Entire application |
+| **Repository Pattern** | Abstracts data access | `domain.repository.*` |
+| **Data Mapper** | Transforms between layers | `persistence.mapper.*` |
+| **Dependency Injection** | Decouples components | Spring Framework |
+| **DTO Pattern** | Transfers data between layers | `domain.dto.*` |
+| **Service Layer** | Encapsulates business logic | `domain.service.*` |
+
+## Benefits of this architecture
+
+<CardGroup cols={2}>
+  <Card title="Testability" icon="vial">
+    Each layer can be tested independently with mocks
+  </Card>
+  <Card title="Maintainability" icon="wrench">
+    Changes to one layer don't ripple through the entire application
+  </Card>
+  <Card title="Flexibility" icon="shuffle">
+    Easy to swap implementations (e.g., change database)
+  </Card>
+  <Card title="Scalability" icon="chart-line">
+    Clear boundaries make it easier to scale specific components
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="play" href="/quickstart">
+    Run the API locally and try it yourself
+  </Card>
+  <Card title="API reference" icon="code" href="https://movieplay-424k.onrender.com/movie-play/api/swagger-ui/index.html">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>

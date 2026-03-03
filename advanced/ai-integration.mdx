@@ -1,0 +1,212 @@
+---
+title: 'AI Integration with LangChain4j'
+description: 'Learn how MoviePlay uses LangChain4j to provide intelligent movie recommendations'
+---
+
+## Overview
+
+MoviePlay integrates [LangChain4j](https://docs.langchain4j.dev/) to provide AI-powered movie recommendations. The integration uses Spring Boot's auto-configuration and declarative service interfaces to create intelligent agents that can interact with your movie catalog.
+
+<Note>
+LangChain4j is a Java library that simplifies integrating Large Language Models (LLMs) into your applications. It provides abstractions for AI services, tools, and memory management.
+</Note>
+
+## The AI Service Interface
+
+The core of the AI integration is the `MoviePlayAiService` interface, which uses the `@AiService` annotation to automatically generate an implementation:
+
+```java MoviePlayAiService.java
+package com.psantana.movieplay.domain.service;
+
+import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.V;
+import dev.langchain4j.service.spring.AiService;
+
+@AiService
+public interface MoviePlayAiService {
+    @UserMessage("""
+                Genera un saludo de bienvenida a la plataforma de gestión de peliculas {{plataform}}.
+                Usa menos de 120 caracteres.
+                """)
+    String generateGreeting(@V("plataform") String plataform);
+
+    @SystemMessage("""
+            Eres un experto en cine que recomienda peliculas personalizadas segun los gustos del usuario.
+            Debes recomendar como maximo 4 peliculas.
+            Solo recomienda peliculas que esten en la plataforma MoviePlay.
+            """)
+    String generateMovieSeggestion(@UserMessage String userMessage);
+}
+```
+
+### Key Annotations
+
+<AccordionGroup>
+  <Accordion title="@AiService">
+    Marks the interface as an AI service. Spring Boot automatically generates an implementation at runtime that:
+    - Connects to the configured LLM (OpenAI, Azure OpenAI, etc.)
+    - Handles prompt formatting and variable substitution
+    - Manages conversation context
+    - Returns structured responses
+  </Accordion>
+
+  <Accordion title="@UserMessage">
+    Defines the prompt template sent to the LLM as a user message. Supports:
+    - Multi-line text blocks using Java's text blocks (`"""`)
+    - Variable interpolation using `{{variableName}}` syntax
+    - Dynamic content from method parameters
+  </Accordion>
+
+  <Accordion title="@SystemMessage">
+    Sets the system context that defines the AI's behavior and personality. This:
+    - Persists across all calls to the method
+    - Establishes rules and constraints
+    - Defines the AI's role and expertise
+  </Accordion>
+
+  <Accordion title="@V (Variable)">
+    Maps method parameters to prompt template variables. The parameter annotated with `@V("plataform")` replaces `{{plataform}}` in the prompt.
+  </Accordion>
+</AccordionGroup>
+
+## Integrating with the Service Layer
+
+The AI service can access your application's data through the `@Tool` annotation. This allows the LLM to query your movie catalog:
+
+```java MovieService.java
+package com.psantana.movieplay.domain.service;
+
+import com.psantana.movieplay.domain.dto.MovieDto;
+import dev.langchain4j.agent.tool.Tool;
+import org.springframework.stereotype.Service;
+import java.util.List;
+
+@Service
+public class MovieService {
+    private final MovieRepository movieRepository;
+
+    public MovieService(MovieRepository movieRepository) {
+        this.movieRepository = movieRepository;
+    }
+
+    @Tool("Busca todas las peliculas que exitan dentro de la plataforma")
+    public List<MovieDto> getAll() {
+        return movieRepository.getAll();
+    }
+    
+    // Other methods...
+}
+```
+
+<Tip>
+The `@Tool` annotation exposes methods to the AI agent. The description helps the LLM understand when and how to use the tool. Write clear, descriptive tool descriptions in natural language.
+</Tip>
+
+## Movie Suggestion Endpoint
+
+The AI service is used in the `MovieController` to provide personalized recommendations:
+
+```java MovieController.java
+@RestController
+@RequestMapping("/movies")
+public class MovieController {
+    
+    private final MovieService movieService;
+    private final MoviePlayAiService moviePlayAiService;
+
+    public MovieController(MovieService movieService, MoviePlayAiService moviePlayAiService) {
+        this.movieService = movieService;
+        this.moviePlayAiService = moviePlayAiService;
+    }
+
+    @PostMapping("/suggest")
+    public ResponseEntity<String> generateMovieSuggestion(@RequestBody SuggestRequestDto suggestRequestDto) {
+        return ResponseEntity.ok(moviePlayAiService.generateMovieSeggestion(suggestRequestDto.userPreferences()));
+    }
+}
+```
+
+### Request Format
+
+```json
+{
+  "userPreferences": "Me gustan las películas de acción y ciencia ficción con mucha adrenalina"
+}
+```
+
+### Response Example
+
+```text
+Basándome en tus preferencias, te recomiendo estas películas de MoviePlay:
+
+1. The Matrix - Ciencia ficción revolucionaria con intensas escenas de acción
+2. Mad Max: Fury Road - Acción post-apocalíptica llena de adrenalina
+3. Inception - Thriller de ciencia ficción con acción cerebral
+4. Edge of Tomorrow - Sci-fi de acción con bucles temporales emocionantes
+```
+
+## How It Works
+
+<Steps>
+  <Step title="User sends preferences">
+    The user submits their movie preferences through the `/movies/suggest` endpoint.
+  </Step>
+  
+  <Step title="System context is applied">
+    The `@SystemMessage` establishes the AI as a movie expert with specific constraints (max 4 recommendations, only MoviePlay catalog).
+  </Step>
+  
+  <Step title="AI queries available movies">
+    The LLM uses the `@Tool`-annotated `getAll()` method to retrieve the current movie catalog.
+  </Step>
+  
+  <Step title="Personalized response is generated">
+    The AI analyzes user preferences against available movies and generates tailored recommendations.
+  </Step>
+</Steps>
+
+## Architecture Benefits
+
+<CardGroup cols={2}>
+  <Card title="Declarative API" icon="code">
+    Define AI behavior through annotations instead of managing prompt engineering code.
+  </Card>
+  
+  <Card title="Type Safety" icon="shield">
+    Full Java type safety for inputs and outputs, with compile-time validation.
+  </Card>
+  
+  <Card title="Tool Integration" icon="wrench">
+    Seamlessly connect AI to your business logic through the `@Tool` annotation.
+  </Card>
+  
+  <Card title="Spring Integration" icon="leaf">
+    Works with Spring's dependency injection and auto-configuration.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+LangChain4j requires LLM provider configuration in `application.properties` or `application.yml`:
+
+```properties
+langchain4j.open-ai.chat-model.api-key=${OPENAI_API_KEY}
+langchain4j.open-ai.chat-model.model-name=gpt-4
+```
+
+<Warning>
+Always store API keys in environment variables or a secure configuration system. Never commit them to version control.
+</Warning>
+
+## Further Reading
+
+<CardGroup cols={2}>
+  <Card title="LangChain4j Documentation" icon="book" href="https://docs.langchain4j.dev/">
+    Official documentation for LangChain4j
+  </Card>
+  
+  <Card title="Spring AI Services" icon="robot" href="https://docs.langchain4j.dev/tutorials/spring-boot-integration">
+    Guide to Spring Boot integration
+  </Card>
+</CardGroup>
