@@ -64,6 +64,7 @@
             "group": "Endpoints",
             "pages": [
               "api-reference/overview",
+              "api-reference/hello",
               "api-reference/movies/get-all-movies",
               "api-reference/movies/get-movie-by-id",
               "api-reference/movies/create-movie",
@@ -76,7 +77,9 @@
             "group": "Data Models",
             "pages": [
               "api-reference/models/movie",
-              "api-reference/models/genre"
+              "api-reference/models/genre",
+              "api-reference/models/update-movie-dto",
+              "api-reference/models/suggest-request-dto"
             ]
           }
         ]

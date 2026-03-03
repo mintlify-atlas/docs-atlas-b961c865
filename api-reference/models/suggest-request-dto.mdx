@@ -1,0 +1,71 @@
+---
+title: 'SuggestRequestDto'
+description: 'Data transfer object for AI movie suggestion requests'
+---
+
+## Overview
+
+The `SuggestRequestDto` is a simple record used to request AI-powered movie recommendations via the `POST /movies/suggest` endpoint.
+
+## Fields
+
+<ResponseField name="userPreferences" type="string" required>
+  Natural language description of the user's movie preferences
+  
+  This field accepts free-form text describing what kind of movies the user enjoys. The more detailed and specific the description, the better the AI recommendations.
+  
+  Examples:
+  - `"I love sci-fi movies with time travel themes and mind-bending plots"`
+  - `"Looking for family-friendly animated movies with humor"`
+  - `"Dark psychological thrillers with unexpected twists"`
+  - `"Action movies set in space with epic battles"`
+</ResponseField>
+
+## Example JSON
+
+```json
+{
+  "userPreferences": "I love sci-fi movies with time travel themes and mind-bending plots"
+}
+```
+
+## Validation
+
+This DTO does not have explicit validation constraints in the source code. However, the field is required for the AI service to generate meaningful recommendations.
+
+<Tip>
+  **Best Practices for User Preferences**:
+  - Be specific about genres, themes, or moods
+  - Mention specific elements you enjoy (e.g., "strong character development", "plot twists", "visual effects")
+  - Include examples of movies you like if relevant
+  - Use natural, conversational language
+</Tip>
+
+## Usage
+
+This DTO is used with the AI suggestion endpoint:
+
+```bash
+POST /movie-play/api/movies/suggest
+```
+
+### Example Request
+
+```bash
+curl -X POST https://movieplay-424k.onrender.com/movie-play/api/movies/suggest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userPreferences": "I enjoy horror movies with supernatural elements and creepy atmospheres"
+  }'
+```
+
+### How It Works
+
+The `userPreferences` string is passed to the `MoviePlayAiService.generateMovieSeggestion()` method, which:
+
+1. Uses LangChain4j's AI service to process the natural language input
+2. Considers the available movies in the MoviePlay catalog
+3. Generates personalized recommendations based on the preferences
+4. Returns up to 4 movie suggestions
+
+See [AI Movie Suggestions](/api-reference/ai/suggest-movies) for complete endpoint documentation.

@@ -1,0 +1,86 @@
+---
+title: 'UpdateMovieDto'
+description: 'Data transfer object for updating existing movies'
+---
+
+## Overview
+
+The `UpdateMovieDto` is a record used when updating an existing movie's information via the `PUT /movies/{id}` endpoint. It includes validation constraints to ensure data integrity.
+
+## Fields
+
+<ResponseField name="title" type="string" required>
+  The movie title
+  
+  **Validation**: Cannot be blank (`@NotBlank`)
+  
+  **Error message**: "The title is required"
+  
+  Example: `"The Matrix Reloaded"`
+</ResponseField>
+
+<ResponseField name="releaseDate" type="string">
+  Release date in ISO 8601 format (YYYY-MM-DD)
+  
+  **Validation**: Must be in the past or present (`@PastOrPresent`)
+  
+  **Error message**: "The release date must be earlier than the current date"
+  
+  Example: `"2003-05-15"`
+</ResponseField>
+
+<ResponseField name="rating" type="number">
+  Movie rating
+  
+  **Validation**:
+  - Minimum: 0 (`@Min(0)`)
+  - Maximum: 5 (`@Max(5)`)
+  
+  **Error messages**:
+  - "The rating cannot be less than 0"
+  - "The rating cannot be higher than 5"
+  
+  Example: `4.2`
+</ResponseField>
+
+## Example JSON
+
+```json
+{
+  "title": "The Matrix Reloaded",
+  "releaseDate": "2003-05-15",
+  "rating": 4.2
+}
+```
+
+## Differences from MovieDto
+
+<Note>
+  `UpdateMovieDto` only includes **partial fields** from the full `MovieDto`. Specifically, it allows updating:
+  - Title
+  - Release date
+  - Rating
+  
+  Fields like `duration`, `genre`, and `status` cannot be updated through this DTO.
+</Note>
+
+## Validation Constraints
+
+All validation is performed using Jakarta Bean Validation annotations:
+
+| Annotation | Field | Rule |
+|------------|-------|------|
+| `@NotBlank` | title | Cannot be null or empty |
+| `@PastOrPresent` | releaseDate | Must not be a future date |
+| `@Min(0)` | rating | Minimum value is 0 |
+| `@Max(5)` | rating | Maximum value is 5 |
+
+## Usage
+
+This DTO is used exclusively with the update movie endpoint:
+
+```bash
+PUT /movie-play/api/movies/{id}
+```
+
+See [Update Movie](/api-reference/movies/update-movie) for complete endpoint documentation.

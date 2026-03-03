@@ -1,0 +1,54 @@
+---
+title: 'Hello Endpoint'
+api: 'GET /hello'
+description: 'Get an AI-generated welcome greeting for MoviePlay'
+---
+
+## Endpoint
+
+```
+GET /movie-play/api/hello
+```
+
+## Description
+
+Returns an AI-generated welcome greeting message for the MoviePlay platform. This endpoint demonstrates the AI integration capabilities of MoviePlay using LangChain4j.
+
+## Parameters
+
+This endpoint does not require any parameters.
+
+## Response
+
+<ResponseField name="greeting" type="string">
+  An AI-generated welcome message (max 120 characters)
+</ResponseField>
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200  | Success - Greeting generated successfully |
+
+## Example Request
+
+```bash cURL
+curl -X GET https://movieplay-424k.onrender.com/movie-play/api/hello
+```
+
+## Example Response
+
+```text 200 OK
+"Welcome to MoviePlay! Discover, manage, and get AI-powered recommendations for your favorite films. Start exploring now!"
+```
+
+<Info>
+  This endpoint uses the `MoviePlayAiService` to generate dynamic greetings. Each request may return a slightly different greeting message.
+</Info>
+
+## Implementation Details
+
+The endpoint is implemented in `HelloController` and uses:
+- `@Value("${spring.application.name}")` to inject the application name
+- `MoviePlayAiService.generateGreeting()` to create personalized AI greetings
+- System message configured to limit responses to 120 characters
